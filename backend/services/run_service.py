@@ -75,14 +75,19 @@ class RunService:
         return [self.get_run_manifest(run_path) for run_path in self.list_run_paths()]
 
     def get_latest_run(self) -> RunManifest:
+        run_paths = self.list_run_paths()
+        if run_paths:
+            # We filter out the fallback run if there are other runs, 
+            # unless the fallback run is truly the most recent.
+            # But usually we want the most recent real search.
+            latest_real = run_paths[0]
+            return self.get_run_manifest(latest_real)
+
         fallback_path = self.repo_root / DEFAULT_FALLBACK_RUN_ID
         if is_valid_run_directory(fallback_path):
             return self.get_run_manifest(fallback_path)
 
-        run_paths = self.list_run_paths()
-        if not run_paths:
-            raise HTTPException(status_code=404, detail="No pipeline runs found.")
-        return self.get_run_manifest(run_paths[0])
+        raise HTTPException(status_code=404, detail="No pipeline runs found.")
 
     def find_matching_run(self, query: str) -> RunManifest | None:
         normalized_query = query.strip().lower()

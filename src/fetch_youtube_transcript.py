@@ -66,6 +66,51 @@ class YouTubeTranscriptFetcher:
             "ignoreerrors": False,  # Don't ignore errors to get proper feedback
         }
 
+    def _fetch_with_transcript_api(self, video_id: str) -> bool:
+        """Fetch transcript using youtube_transcript_api library.
+        
+        Args:
+            video_id (str): YouTube video ID.
+            
+        Returns:
+            bool: True if successful, False otherwise.
+        """
+        try:
+            from youtube_transcript_api import YouTubeTranscriptApi
+            from youtube_transcript_api.formatters import SRTFormatter
+            
+            print(f"[FETCH] Attempting youtube-transcript-api for {video_id}...")
+            
+            # Instantiate the API
+            api = YouTubeTranscriptApi()
+            
+            # Get the transcript list
+            transcript_list = api.list(video_id)
+            
+            # Try to find the requested language, or fallback to English
+            try:
+                transcript = transcript_list.find_transcript([self.language, 'en'])
+            except:
+                # If specified languages not found, just take the first one available
+                transcript = next(iter(transcript_list))
+                
+            transcript_data = transcript.fetch()
+            
+            # Format to SRT
+            formatter = SRTFormatter()
+            srt_content = formatter.format_transcript(transcript_data)
+            
+            # Save to file
+            output_path = os.path.join(self.output_folder, f"{video_id}.{self.language}.srt")
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(srt_content)
+                
+            print(f"[FETCH] [SUCCESS] Saved transcript using API: {output_path}")
+            return True
+        except Exception as e:
+            print(f"[FETCH] youtube-transcript-api failed for {video_id}: {str(e)}")
+            return False
+
     def fetch_transcript(self, url: str) -> bool:
         """Fetch transcript for a single YouTube video.
 
@@ -75,12 +120,26 @@ class YouTubeTranscriptFetcher:
         Returns:
             bool: True if transcript was successfully downloaded, False otherwise.
         """
+        # Extract video ID
+        video_id = ""
+        if "v=" in url:
+            video_id = url.split("v=")[1].split("&")[0]
+        elif "be/" in url:
+            video_id = url.split("be/")[1].split("?")[0]
+            
+        # Try youtube-transcript-api first as it is more reliable for bots
+        if video_id:
+            if self._fetch_with_transcript_api(video_id):
+                return True
+                
+        # Fallback to yt-dlp
+        print(f"[FETCH] Falling back to yt-dlp for {url}...")
         try:
             with YoutubeDL(self._get_ydl_opts()) as ydl:
                 ydl.download([url])
             return True
         except Exception as e:
-            print(f"Error downloading transcript for {url}: {str(e)}")
+            print(f"Error downloading transcript for {url} with yt-dlp: {str(e)}")
             return False
 
     def _fetch_transcripts_sequential(self, urls: List[str]) -> dict:

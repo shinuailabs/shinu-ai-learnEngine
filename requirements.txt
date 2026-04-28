@@ -17,3 +17,4 @@ llama-index-llms-openai
 sentence-transformers
 llama-index-llms-openrouter
 llama-index-embeddings-huggingface
+youtube-transcript-api

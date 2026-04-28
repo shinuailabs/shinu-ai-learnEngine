@@ -12,8 +12,8 @@ This file contains developer context, known issues, architecture decisions, and 
 
 | Mode | Entry Point | Port | Notes |
 |---|---|---|---|
-| **Gradio UI** (primary) | `app.py` | `7860` | Single command, no build step |
-| **React + FastAPI** (optional) | `backend/main.py` + `frontend/` | `8000` / `5173` | Requires two processes |
+| **Gradio UI** (Legacy/Internal) | `app.py` | `7860` | Single command, no build step |
+| **React + FastAPI** (Primary) | `backend/main.py` + `frontend/` | `8000` / `5174` | Modern dashboard with real-time updates |
 
 ---
 
@@ -91,6 +91,14 @@ Stored in `.env` at the repository root. Loaded via `python-dotenv`.
 **Root cause:** These fields are populated by AI insights (`generate_ai_insights()`). If no summary files exist (0 successful summaries due to API rate limits or failures), `_get_fallback_insights()` returns `"Unknown"` for all categorical fields.  
 **Fix (UI):** Unknown/N/A values in those columns now render as an amber **⚠ No data** badge (with a tooltip) instead of a grey "Unknown" badge, clearly communicating to the user that AI summarization must complete first.  
 **Root fix:** Ensure `OPENROUTER_API_KEY` is valid and not rate-limited. The summarization step must succeed before comparison AI insights can be generated.
+
+### 5. YouTube Bot Detection / 429 Errors
+**Symptom:** `ERROR: [youtube] Sign in to confirm you’re not a bot.` or `HTTP Error 429: Too Many Requests`
+**Root cause:** YouTube blocks automated transcript fetching from certain IPs or after too many requests.
+**Fix:** 
+1.  **Fallback Library**: Added `youtube-transcript-api` as a secondary fetcher in `src/fetch_youtube_transcript.py`.
+2.  **UI Feedback**: Updated `PipelineDashboard` to show "Generation Failed" with an explanation if transcripts cannot be retrieved, instead of spinning forever.
+3.  **Workaround**: Use a different network (hotspot) or wait for the IP block to lift (usually 30-60 mins).
 
 ---
 
@@ -194,9 +202,10 @@ Key packages from `requirements.txt`:
 | `llama-index` | RAG framework |
 | `lancedb` | Vector database |
 | `sentence-transformers` | Embedding model for RAG |
-| `yt-dlp` | `>=2025.9.26` — YouTube transcript fetching |
+| `yt-dlp` | `>=2025.9.26` — Primary YouTube transcript fetching |
+| `youtube-transcript-api` | Secondary fallback for transcript fetching |
 | `google-api-python-client` | YouTube Data API v3 |
-| `openai` | OpenAI-compatible API calls |
+| `openai` | OpenAI-compatible API calls (OpenRouter) |
 | `python-dotenv` | `.env` loading |
 
 ---

@@ -16,7 +16,8 @@ import {
   FileText,
   Search,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from 'lucide-react'
 import {
   type ReactNode,
@@ -224,22 +225,30 @@ export function PipelineDashboard({
         </div>
         <div className="flex max-h-[800px] flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
           {videos.map((video) => (
-            <Card key={video.video_id} className="group overflow-hidden p-0 transition-all hover:ring-2 hover:ring-primary/30">
-              <div className="flex h-24 gap-4 p-3">
-                <div className="relative aspect-video flex-shrink-0 overflow-hidden rounded-lg bg-muted">
-                  <img src={getVideoThumbnail(video.video_id)} alt={video.title} className="h-full w-full object-cover transition-transform group-hover:scale-110" />
-                  <div className="absolute bottom-1 right-1 rounded bg-black/70 px-1 text-[10px] text-white">
-                    {video.duration}
+            <a 
+              key={video.video_id} 
+              href={video.url} 
+              target="_blank" 
+              rel="noreferrer"
+              className="block outline-none"
+            >
+              <Card className="group overflow-hidden p-0 transition-all hover:ring-2 hover:ring-primary/30">
+                <div className="flex h-24 gap-4 p-3">
+                  <div className="relative aspect-video flex-shrink-0 overflow-hidden rounded-lg bg-muted">
+                    <img src={getVideoThumbnail(video.video_id)} alt={video.title} className="h-full w-full object-cover transition-transform group-hover:scale-110" />
+                    <div className="absolute bottom-1 right-1 rounded bg-black/70 px-1 text-[10px] text-white">
+                      {video.duration}
+                    </div>
+                  </div>
+                  <div className="flex flex-col justify-center overflow-hidden">
+                    <p className="truncate text-xs font-medium text-primary">{video.channel}</p>
+                    <h4 className="mt-1 line-clamp-2 text-sm font-semibold leading-tight text-card-foreground">
+                      {video.title}
+                    </h4>
                   </div>
                 </div>
-                <div className="flex flex-col justify-center overflow-hidden">
-                  <p className="truncate text-xs font-medium text-primary">{video.channel}</p>
-                  <h4 className="mt-1 line-clamp-2 text-sm font-semibold leading-tight text-card-foreground">
-                    {video.title}
-                  </h4>
-                </div>
-              </div>
-            </Card>
+              </Card>
+            </a>
           ))}
         </div>
       </aside>
@@ -321,43 +330,82 @@ export function PipelineDashboard({
               </Tabs.Content>
 
               <Tabs.Content value="summaries" className="animate-in space-y-8">
-                {summaries.map((item) => (
-                  <div key={item.video_id} className="space-y-6">
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 flex-shrink-0 rounded-xl bg-primary/10 flex items-center justify-center">
-                        <FileText className="h-5 w-5 text-primary" />
+                {summaries.length > 0 ? (
+                  summaries.map((item) => (
+                    <div key={item.video_id} className="space-y-6">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 flex-shrink-0 rounded-xl bg-primary/10 flex items-center justify-center">
+                          <FileText className="h-5 w-5 text-primary" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-card-foreground">
+                          <a href={item.url} target="_blank" rel="noreferrer" className="hover:text-primary transition-colors decoration-primary/30 underline-offset-4 hover:underline">
+                            {item.title}
+                          </a>
+                        </h3>
                       </div>
-                      <h3 className="text-2xl font-bold text-card-foreground">{item.title}</h3>
+                      
+                      {item.available ? (
+                        <>
+                          <MarkdownBody markdown={item.high_level_overview} />
+                          <div className="grid gap-6 md:grid-cols-2">
+                             <Card className="p-6 border-emerald-500/20 bg-emerald-500/5">
+                                <h5 className="flex items-center gap-2 font-bold text-emerald-500 mb-4">
+                                  <Lightbulb className="h-4 w-4" /> Key Insights
+                                </h5>
+                                {item.insights.length > 0 ? (
+                                  <ul className="space-y-3">
+                                    {item.insights.map((insight, i) => (
+                                      <li key={i} className="flex gap-3 text-sm text-muted-foreground">
+                                        <span className="text-emerald-500 mt-1 font-bold">✓</span> {insight}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="text-sm text-muted-foreground italic">No specific insights available.</p>
+                                )}
+                             </Card>
+                             <Card className="p-6 border-amber-500/20 bg-amber-500/5">
+                                <h5 className="flex items-center gap-2 font-bold text-amber-500 mb-4">
+                                  <AlertCircle className="h-4 w-4" /> Limitations
+                                </h5>
+                                {item.limitations.length > 0 ? (
+                                  <ul className="space-y-3">
+                                    {item.limitations.map((lim, i) => (
+                                      <li key={i} className="flex gap-3 text-sm text-muted-foreground">
+                                        <span className="text-amber-500 mt-1 font-bold">•</span> {lim}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="text-sm text-muted-foreground italic">No limitations noted.</p>
+                                )}
+                             </Card>
+                          </div>
+                        </>
+                      ) : (
+                        <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed bg-muted/10">
+                          {isRunning ? (
+                            <>
+                              <Loader2 className="h-8 w-8 text-muted-foreground animate-spin mb-4" />
+                              <p className="text-sm font-medium text-muted-foreground">Summary generation in progress...</p>
+                              <p className="text-xs text-muted-foreground/60 mt-1">This usually takes 30-60 seconds per video.</p>
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="h-8 w-8 text-destructive mb-4" />
+                              <p className="text-sm font-medium text-destructive">Summary generation failed.</p>
+                              <p className="text-xs text-muted-foreground/60 mt-1">No transcript was found or the AI processing was interrupted.</p>
+                            </>
+                          )}
+                        </Card>
+                      )}
                     </div>
-                    <MarkdownBody markdown={item.high_level_overview} />
-                    <div className="grid gap-6 md:grid-cols-2">
-                       <Card className="p-6 border-emerald-500/20 bg-emerald-500/5">
-                          <h5 className="flex items-center gap-2 font-bold text-emerald-500 mb-4">
-                            <Lightbulb className="h-4 w-4" /> Key Insights
-                          </h5>
-                          <ul className="space-y-3">
-                            {item.insights.map((insight, i) => (
-                              <li key={i} className="flex gap-3 text-sm text-muted-foreground">
-                                <span className="text-emerald-500 mt-1 font-bold">✓</span> {insight}
-                              </li>
-                            ))}
-                          </ul>
-                       </Card>
-                       <Card className="p-6 border-amber-500/20 bg-amber-500/5">
-                          <h5 className="flex items-center gap-2 font-bold text-amber-500 mb-4">
-                            <AlertCircle className="h-4 w-4" /> Limitations
-                          </h5>
-                          <ul className="space-y-3">
-                            {item.limitations.map((lim, i) => (
-                              <li key={i} className="flex gap-3 text-sm text-muted-foreground">
-                                <span className="text-amber-500 mt-1 font-bold">•</span> {lim}
-                              </li>
-                            ))}
-                          </ul>
-                       </Card>
-                    </div>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-20 text-center">
+                    <p className="text-muted-foreground">No videos available to summarize.</p>
                   </div>
-                ))}
+                )}
               </Tabs.Content>
 
               <Tabs.Content value="comparison" className="animate-in space-y-6">
@@ -375,7 +423,11 @@ export function PipelineDashboard({
                       <tbody className="divide-y divide-border">
                         {comparison.map((row) => (
                           <tr key={row.video_id} className="hover:bg-muted/30">
-                            <td className="px-6 py-4 font-medium text-card-foreground">{row.title}</td>
+                            <td className="px-6 py-4 font-medium text-card-foreground">
+                              <a href={row.url} target="_blank" rel="noreferrer" className="hover:text-primary transition-colors decoration-primary/30 underline-offset-4 hover:underline">
+                                {row.title}
+                              </a>
+                            </td>
                             <td className="px-6 py-4 text-muted-foreground">{row.content_depth}</td>
                             <td className="px-6 py-4 text-muted-foreground">{row.difficulty}</td>
                             <td className="px-6 py-4 text-muted-foreground">{row.teaching_style}</td>
@@ -388,90 +440,121 @@ export function PipelineDashboard({
               </Tabs.Content>
 
               <Tabs.Content value="assignments" className="animate-in space-y-10">
-                {assignments.map((item) => {
-                  const progressItems = item.checklist.length > 0 
-                    ? item.checklist 
-                    : item.sections.map(s => ({ id: s.id, label: s.title }))
-                  const completedCount = progressItems.filter(p => assignmentProgress[item.video_id]?.[p.id]).length
-                  const progressPercent = progressItems.length > 0 ? Math.round((completedCount / progressItems.length) * 100) : 0
+                {assignments.length > 0 ? (
+                  assignments.map((item) => {
+                    const progressItems = item.checklist.length > 0 
+                      ? item.checklist 
+                      : item.sections.map(s => ({ id: s.id, label: s.title }))
+                    const completedCount = progressItems.filter(p => assignmentProgress[item.video_id]?.[p.id]).length
+                    const progressPercent = progressItems.length > 0 ? Math.round((completedCount / progressItems.length) * 100) : 0
 
-                  return (
-                    <div key={item.video_id} className="space-y-6">
-                      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="space-y-2">
-                          <h3 className="text-2xl font-bold text-card-foreground">📝 AI Generated Assignment</h3>
-                          <p className="text-sm text-muted-foreground">Practical tasks based on: {item.title}</p>
-                        </div>
-                        <div className="w-full max-w-[200px] space-y-2">
-                          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-primary">
-                            <span>Progress</span>
-                            <span>{progressPercent}%</span>
+                    return (
+                      <div key={item.video_id} className="space-y-6">
+                        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="space-y-2">
+                            <h3 className="text-2xl font-bold text-card-foreground">📝 AI Generated Assignment</h3>
+                            <p className="text-sm text-muted-foreground">Practical tasks based on: {item.title}</p>
                           </div>
-                          <div className="h-2 w-full overflow-hidden rounded-full bg-muted shadow-inner">
-                             <motion.div 
-                               className="h-full bg-primary" 
-                               initial={{ width: 0 }}
-                               animate={{ width: `${progressPercent}%` }}
-                               transition={{ duration: 0.5 }}
-                             />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid gap-8 lg:grid-cols-[1fr,300px]">
-                        <div className="space-y-6">
-                          {item.sections.length > 0 ? (
-                            item.sections.map((section) => (
-                              <Card key={section.id} className="p-8">
-                                <h4 className="text-xl font-bold text-card-foreground mb-4">{section.title}</h4>
-                                <MarkdownBody markdown={section.markdown} />
-                                <div className="mt-8 flex gap-4">
-                                  <Button className="h-11 px-8">Submit Answer</Button>
-                                  <Button variant="secondary" className="h-11 px-8">Generate Solution</Button>
-                                </div>
-                              </Card>
-                            ))
-                          ) : (
-                            <Card className="p-8">
-                               <h4 className="text-xl font-bold text-card-foreground mb-4">Core Task</h4>
-                               <MarkdownBody markdown={item.markdown || 'No task content available.'} />
-                               <div className="mt-8 flex gap-4">
-                                  <Button className="h-11 px-8">Submit Answer</Button>
-                                  <Button variant="secondary" className="h-11 px-8">Generate Solution</Button>
-                                </div>
-                            </Card>
+                          
+                          {item.available && (
+                            <div className="w-full max-w-[200px] space-y-2">
+                              <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-primary">
+                                <span>Progress</span>
+                                <span>{progressPercent}%</span>
+                              </div>
+                              <div className="h-2 w-full overflow-hidden rounded-full bg-muted shadow-inner">
+                                 <motion.div 
+                                   className="h-full bg-primary" 
+                                   initial={{ width: 0 }}
+                                   animate={{ width: `${progressPercent}%` }}
+                                   transition={{ duration: 0.5 }}
+                                 />
+                              </div>
+                            </div>
                           )}
                         </div>
 
-                        <div className="space-y-6">
-                          <h5 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Task Checklist</h5>
-                          <div className="space-y-3">
-                            {progressItems.map((task) => (
-                              <button
-                                key={task.id}
-                                onClick={() => toggleAssignmentItem(item.video_id, task.id)}
-                                className={cn(
-                                  "flex w-full items-center gap-3 rounded-xl border border-border p-4 text-left transition-all",
-                                  assignmentProgress[item.video_id]?.[task.id] 
-                                    ? "bg-primary/10 border-primary/30" 
-                                    : "bg-muted/30 hover:bg-muted/50"
-                                )}
-                              >
-                                {assignmentProgress[item.video_id]?.[task.id] 
-                                  ? <CheckCircle2 className="h-5 w-5 text-primary" />
-                                  : <Circle className="h-5 w-5 text-muted-foreground" />
-                                }
-                                <span className={cn("text-sm font-medium", assignmentProgress[item.video_id]?.[task.id] ? "text-primary" : "text-card-foreground")}>
-                                  {task.label}
-                                </span>
-                              </button>
-                            ))}
+                        {item.available ? (
+                          <div className="grid gap-8 lg:grid-cols-[1fr,300px]">
+                            <div className="space-y-6">
+                              {item.sections.length > 0 ? (
+                                item.sections.map((section) => (
+                                  <Card key={section.id} className="p-8">
+                                    <h4 className="text-xl font-bold text-card-foreground mb-4">{section.title}</h4>
+                                    <MarkdownBody markdown={section.markdown} />
+                                    <div className="mt-8 flex gap-4">
+                                      <Button className="h-11 px-8">Submit Answer</Button>
+                                      <Button variant="secondary" className="h-11 px-8">Generate Solution</Button>
+                                    </div>
+                                  </Card>
+                                ))
+                              ) : (
+                                <Card className="p-8">
+                                   <h4 className="text-xl font-bold text-card-foreground mb-4">Core Task</h4>
+                                   <MarkdownBody markdown={item.markdown || 'No task content available.'} />
+                                   <div className="mt-8 flex gap-4">
+                                      <Button className="h-11 px-8">Submit Answer</Button>
+                                      <Button variant="secondary" className="h-11 px-8">Generate Solution</Button>
+                                    </div>
+                                </Card>
+                              )}
+                            </div>
+
+                            <div className="space-y-6">
+                              <h5 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Task Checklist</h5>
+                              <div className="space-y-3">
+                                {progressItems.map((task) => (
+                                  <button
+                                    key={task.id}
+                                    onClick={() => toggleAssignmentItem(item.video_id, task.id)}
+                                    className={cn(
+                                      "flex w-full items-center gap-3 rounded-xl border border-border p-4 text-left transition-all",
+                                      assignmentProgress[item.video_id]?.[task.id] 
+                                        ? "bg-primary/10 border-primary/30" 
+                                        : "bg-muted/30 hover:bg-muted/50"
+                                    )}
+                                  >
+                                    {assignmentProgress[item.video_id]?.[task.id] 
+                                      ? <CheckCircle2 className="h-5 w-5 text-primary" />
+                                      : <Circle className="h-5 w-5 text-muted-foreground" />
+                                    }
+                                    <span className={cn("text-sm font-medium", assignmentProgress[item.video_id]?.[task.id] ? "text-primary" : "text-card-foreground")}>
+                                      {task.label}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <Card className="flex flex-col items-center justify-center p-16 text-center border-dashed bg-muted/10">
+                          {isRunning ? (
+                            <>
+                              <Loader2 className="h-10 w-10 text-muted-foreground animate-spin mb-6" />
+                              <h4 className="text-lg font-bold text-card-foreground">Assignment Generation Pending</h4>
+                              <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                                We are creating personalized learning tasks based on the video summaries. This will be available shortly.
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="h-10 w-10 text-destructive mb-6" />
+                              <h4 className="text-lg font-bold text-destructive">Assignment Generation Failed</h4>
+                              <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                                We couldn't generate an assignment for this video. This often happens if the transcript or summary is missing.
+                              </p>
+                            </>
+                          )}
+                        </Card>
+                        )}
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-20 text-center">
+                    <p className="text-muted-foreground">No videos available for assignments.</p>
+                  </div>
+                )}
               </Tabs.Content>
 
               <Tabs.Content value="papers" className="animate-in">

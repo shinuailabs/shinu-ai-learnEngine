@@ -99,20 +99,30 @@ export function PapersPanel({
 
       {result && !isLoading ? (
         <div className="grid gap-8 lg:grid-cols-[1.2fr,0.8fr] animate-in">
-          <Card className="p-8 space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <BookOpenText className="h-5 w-5 text-primary" />
+          {result.success ? (
+            <Card className="p-8 space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <BookOpenText className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-card-foreground">AI Synthesis</h3>
+                  <p className="text-xs text-muted-foreground">Generated from {result.num_sources} academic sources</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-card-foreground">AI Synthesis</h3>
-                <p className="text-xs text-muted-foreground">Generated from {result.num_sources} academic sources</p>
+              <div className="prose prose-sm prose-invert max-w-none">
+                 <p className="text-base leading-relaxed text-card-foreground/90 whitespace-pre-wrap">{result.response}</p>
               </div>
-            </div>
-            <div className="prose prose-sm prose-invert max-w-none">
-               <p className="text-base leading-relaxed text-card-foreground/90 whitespace-pre-wrap">{result.response}</p>
-            </div>
-          </Card>
+            </Card>
+          ) : (
+            <Card className="p-12 flex flex-col items-center justify-center text-center border-destructive/20 bg-destructive/5">
+              <Badge variant="destructive" className="mb-4">Analysis Failed</Badge>
+              <h3 className="text-xl font-bold text-card-foreground">Research Query Error</h3>
+              <p className="mt-2 text-muted-foreground max-w-md">
+                {result.error || "The AI system encountered an issue while analyzing the academic papers. This might be due to API rate limits or lack of relevant content."}
+              </p>
+            </Card>
+          )}
 
           <div className="space-y-6">
              <div className="flex items-center gap-3">

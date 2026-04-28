@@ -20,10 +20,10 @@ api:
 processing:
   # Parallel processing settings
   workers:
-    auto_detect: true
-    min_workers: 2
-    max_workers: 16
-    cpu_ratio: 0.5  # Use 50% of available CPU cores for auto-detection
+    auto_detect: false
+    min_workers: 1
+    max_workers: 4
+    cpu_ratio: 0.2  # Use 20% of available CPU cores for auto-detection
     
   # Transcript processing
   transcripts:

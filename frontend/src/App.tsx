@@ -54,6 +54,7 @@ function App() {
 
   const runMutation = useMutation({
     mutationFn: async () => {
+      // Step 1: Create the run
       const result = await searchPipeline({
         query: searchQuery,
         max_videos: maxVideos,
@@ -63,39 +64,49 @@ function App() {
         prefer_cache: false,
       })
 
-      await triggerTranscripts(result.run_id, {
-        ...defaultArtifactRequest,
-        transcript_language: transcriptLanguage,
-        num_workers: numWorkers,
-      })
+      // Update the UI immediately to show the new run
+      setSelectedRunId(result.run_id)
+      void queryClient.invalidateQueries({ queryKey: ['runs', result.run_id, 'bundle'] })
 
-      await triggerSummaries(result.run_id, {
-        ...defaultArtifactRequest,
-        transcript_language: transcriptLanguage,
-        num_workers: numWorkers,
-      })
-
-      await Promise.all([
-        triggerComparison(result.run_id, {
+      // Step 2: Trigger artifacts in background (but await them here to track mutation pending state)
+      try {
+        await triggerTranscripts(result.run_id, {
           ...defaultArtifactRequest,
           transcript_language: transcriptLanguage,
           num_workers: numWorkers,
-          use_ai_insights: false,
-        }),
-        triggerAssignments(result.run_id, {
+        })
+        void queryClient.invalidateQueries({ queryKey: ['runs', result.run_id, 'bundle'] })
+
+        await triggerSummaries(result.run_id, {
           ...defaultArtifactRequest,
           transcript_language: transcriptLanguage,
           num_workers: numWorkers,
-        }),
-      ])
+        })
+        void queryClient.invalidateQueries({ queryKey: ['runs', result.run_id, 'bundle'] })
+
+        await Promise.all([
+          triggerComparison(result.run_id, {
+            ...defaultArtifactRequest,
+            transcript_language: transcriptLanguage,
+            num_workers: numWorkers,
+            use_ai_insights: false,
+          }),
+          triggerAssignments(result.run_id, {
+            ...defaultArtifactRequest,
+            transcript_language: transcriptLanguage,
+            num_workers: numWorkers,
+          }),
+        ])
+        void queryClient.invalidateQueries({ queryKey: ['runs', result.run_id, 'bundle'] })
+      } catch (err) {
+        console.error("Artifact generation background tasks failed:", err)
+      }
 
       return result
     },
     onSuccess: (result) => {
-      setSelectedRunId(result.run_id)
-      setStatusMessage('Run ready.')
+      setStatusMessage('Analysis complete.')
       void queryClient.invalidateQueries({ queryKey: ['runs', 'latest'] })
-      void queryClient.invalidateQueries({ queryKey: ['runs', result.run_id, 'bundle'] })
     },
     onError: (error) => {
       setStatusMessage(error.message)

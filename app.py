@@ -197,7 +197,7 @@ def step1_search_videos(
         
         # Fallback: Use existing pipeline output folder if API failed or demo mode
         if not videos:
-            fallback_folder = "pipeline_output_1759513972"
+            fallback_folder = "pipeline_output_1777393156"
             if os.path.exists(fallback_folder):
                 print(f"[FALLBACK] Using read-only pipeline output: {fallback_folder}")
                 
@@ -248,7 +248,7 @@ def step1_search_videos(
                         return pipeline_state["search_results"]
             
             if demo_mode:
-                return "❌ Demo data not found. Please ensure the fallback folder exists at: pipeline_output_1759513972"
+                return "❌ Demo data not found. Please ensure the fallback folder exists at: pipeline_output_1777393156"
             return "❌ YouTube API unavailable and no fallback data found. Please check your API key."
 
     except Exception as e:

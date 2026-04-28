@@ -128,7 +128,7 @@ class YouTubePipeline:
             return videos
         except Exception as e:
             print(f"[SEARCH] Error during video search: {str(e)}")
-            return []
+            raise e
 
     def fetch_transcripts(self, videos: List[Dict]) -> Tuple[List[str], Dict]:
         """Fetch transcripts for the found videos.

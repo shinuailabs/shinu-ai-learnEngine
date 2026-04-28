@@ -19,7 +19,7 @@ from backend.schemas.runs import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_FALLBACK_RUN_ID = "pipeline_output_1759513972"
+DEFAULT_FALLBACK_RUN_ID = "pipeline_output_1777393156"
 SRC_ROOT = REPO_ROOT / "src"
 
 if str(SRC_ROOT) not in sys.path:
@@ -44,18 +44,24 @@ def load_json_with_recovery(raw_content: str) -> dict[str, Any]:
     if not content:
         return {}
 
-    # Strip markdown code blocks if present
-    if content.startswith("```json"):
-        content = content[len("```json") :].strip()
-    elif content.startswith("```"):
-        content = content[len("```") :].strip()
-    
-    if content.endswith("```"):
-        content = content[: -len("```")].strip()
+    # More robust markdown stripping
+    # Remove ```json ... ``` or just ``` ... ```
+    content = re.sub(r"^```(?:json)?\s*", "", content, flags=re.MULTILINE)
+    content = re.sub(r"\s*```$", "", content, flags=re.MULTILINE)
+    content = content.strip()
 
     try:
         return json.loads(content)
     except json.JSONDecodeError:
+        # Try to find the first { and last } to extract JSON if there's extra text
+        try:
+            start = content.find("{")
+            end = content.rfind("}")
+            if start != -1 and end != -1:
+                return json.loads(content[start : end + 1])
+        except:
+            pass
+            
         fixed_content: list[str] = []
         in_string = False
         escape_next = False
@@ -193,6 +199,9 @@ def read_summaries(run_dir: Path) -> list[SummaryArtifact]:
         summary_path = summaries_dir / f"{video_id}_summary.json"
         summary_data = read_json_file(summary_path if summary_path.exists() else None)
 
+        # A summary is only "available" if the file exists AND we successfully parsed at least the overview
+        has_data = bool(summary_data.get("high_level_overview"))
+        
         artifacts.append(
             SummaryArtifact(
                 video_id=video_id,
@@ -205,7 +214,7 @@ def read_summaries(run_dir: Path) -> list[SummaryArtifact]:
                 insights=summary_data.get("insights", []),
                 applications=summary_data.get("applications", []),
                 limitations=summary_data.get("limitations", []),
-                available=summary_path.exists(),
+                available=has_data,
             )
         )
 

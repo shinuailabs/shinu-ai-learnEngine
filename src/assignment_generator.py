@@ -188,7 +188,16 @@ class YouTubeAssignmentGenerator:
                 video_id = summary_file.name.replace("_summary.json", "")
 
                 with open(summary_file, "r", encoding="utf-8") as f:
-                    content = f.read()
+                    content = f.read().strip()
+                
+                # Strip markdown code blocks if present
+                if content.startswith("```json"):
+                    content = content[len("```json") :].strip()
+                elif content.startswith("```"):
+                    content = content[len("```") :].strip()
+                
+                if content.endswith("```"):
+                    content = content[: -len("```")].strip()
                 
                 # Try to parse JSON, handling malformed content with unescaped newlines
                 try:
@@ -222,10 +231,10 @@ class YouTubeAssignmentGenerator:
                     summary = json.loads(content)
 
                 summary_data[video_id] = summary
-                print(f"[SUMMARY] ✓ Loaded summary for: {video_id}")
+                print(f"[SUMMARY] [SUCCESS] Loaded summary for: {video_id}")
 
             except Exception as e:
-                print(f"[SUMMARY] ✗ Error loading {summary_file.name}: {e}")
+                print(f"[SUMMARY] [ERROR] Error loading {summary_file.name}: {e}")
 
         print(f"[SUMMARY] Successfully loaded {len(summary_data)} summaries")
         return summary_data

@@ -141,19 +141,38 @@ class YouTubeTranscriptSummarizer:
             # Create a new client instance for thread safety
             client = OpenAI(api_key=os.getenv("OPENROUTER_API_KEY"), base_url="https://openrouter.ai/api/v1")
 
-            # Make API call to OpenAI
-            response = client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": self.prompt_template},
-                    {"role": "user", "content": user_message},
-                ],
-                timeout=self.timeout,
-            )
+            # Make API call to OpenAI with retries for 429
+            max_retries = 3
+            backoff_factor = 2
+            for attempt in range(max_retries):
+                try:
+                    response = client.chat.completions.create(
+                        model=self.model,
+                        messages=[
+                            {"role": "system", "content": self.prompt_template},
+                            {"role": "user", "content": user_message},
+                        ],
+                        timeout=self.timeout,
+                    )
+                    break
+                except Exception as e:
+                    if "429" in str(e) and attempt < max_retries - 1:
+                        sleep_time = backoff_factor ** (attempt + 1)
+                        print(f"[API-{thread_id}] Received 429, retrying in {sleep_time}s...")
+                        time.sleep(sleep_time)
+                        continue
+                    else:
+                        raise e
 
             api_time = time.time() - api_start
             print(f"[API-{thread_id}] Received response in {api_time:.2f}s")
             summary = response.choices[0].message.content
+
+            # Clean the summary if it's wrapped in markdown
+            import re
+            summary = re.sub(r"^```(?:json)?\s*", "", summary, flags=re.MULTILINE)
+            summary = re.sub(r"\s*```$", "", summary, flags=re.MULTILINE)
+            summary = summary.strip()
 
             # Save or print the summary
             if output_path:
@@ -211,6 +230,10 @@ class YouTubeTranscriptSummarizer:
             summary = self.summarize_transcript(srt_path, output_path=output_path)
             results[srt_path] = bool(summary)
             print(f"[SEQUENTIAL] Completed {i}/{len(transcript_paths)}")
+            
+            # Add a small delay to avoid hitting rate limits
+            if i < len(transcript_paths):
+                time.sleep(1)
 
         print("[SEQUENTIAL] All transcripts processed sequentially")
         return results

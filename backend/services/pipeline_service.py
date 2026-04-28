@@ -78,10 +78,22 @@ class PipelineService:
             )
             videos = pipeline.search_videos(request.query)
             if not videos:
-                return self._build_fallback_response()
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No videos found for the query: '{request.query}'. Try a different search term."
+                )
 
-        except Exception:
-            return self._build_fallback_response()
+        except Exception as e:
+            import traceback
+            print(f"[ERROR] Pipeline search failed: {str(e)}")
+            traceback.print_exc()
+            
+            # Only fall back if it's truly a critical failure that we want to hide for demo purposes,
+            # but for now, let's return the error so we can fix it.
+            raise HTTPException(
+                status_code=500,
+                detail=f"Pipeline initialization failed: {str(e)}"
+            )
 
         return PipelineActionResponse(
             run_id=run_id,
