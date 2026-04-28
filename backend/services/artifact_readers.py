@@ -40,14 +40,27 @@ def get_latest_file(folder: Path, pattern: str) -> Path | None:
 
 
 def load_json_with_recovery(raw_content: str) -> dict[str, Any]:
+    content = raw_content.strip()
+    if not content:
+        return {}
+
+    # Strip markdown code blocks if present
+    if content.startswith("```json"):
+        content = content[len("```json") :].strip()
+    elif content.startswith("```"):
+        content = content[len("```") :].strip()
+    
+    if content.endswith("```"):
+        content = content[: -len("```")].strip()
+
     try:
-        return json.loads(raw_content)
+        return json.loads(content)
     except json.JSONDecodeError:
         fixed_content: list[str] = []
         in_string = False
         escape_next = False
 
-        for char in raw_content:
+        for char in content:
             if escape_next:
                 fixed_content.append(char)
                 escape_next = False
@@ -66,7 +79,10 @@ def load_json_with_recovery(raw_content: str) -> dict[str, Any]:
             else:
                 fixed_content.append(char)
 
-        return json.loads("".join(fixed_content))
+        try:
+            return json.loads("".join(fixed_content))
+        except json.JSONDecodeError:
+            return {}
 
 
 def read_json_file(path: Path | None) -> dict[str, Any]:

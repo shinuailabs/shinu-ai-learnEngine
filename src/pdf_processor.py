@@ -304,9 +304,9 @@ class PaperPDFProcessor:
 
             if document:
                 documents.append(document)
-                print(f"✓ Successfully processed: {pdf_file.name}")
+                print(f"[SUCCESS] Successfully processed: {pdf_file.name}")
             else:
-                print(f"✗ Failed to process: {pdf_file.name}")
+                print(f"[FAILED] Failed to process: {pdf_file.name}")
 
         print(
             f"Successfully processed {len(documents)} out of {len(pdf_files)} PDF files"

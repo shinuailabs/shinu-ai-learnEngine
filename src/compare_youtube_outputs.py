@@ -139,22 +139,22 @@ class YouTubeOutputComparator:
                         with open(summary_file, "w", encoding="utf-8") as f:
                             f.write(json_content)
 
-                        print(f"[FIX] ✓ Fixed JSON format in: {summary_file.name}")
+                        print(f"[FIX] OK - Fixed JSON format in: {summary_file.name}")
                         fix_results[summary_file.name] = True
                     except json.JSONDecodeError as e:
                         print(
-                            f"[FIX] ✗ Invalid JSON after extraction in {summary_file.name}: {e}"
+                            f"[FIX] ERROR - Invalid JSON after extraction in {summary_file.name}: {e}"
                         )
                         fix_results[summary_file.name] = False
                 else:
                     # Try to parse as-is to validate
                     try:
                         json.loads(content)
-                        print(f"[FIX] ✓ Valid JSON format: {summary_file.name}")
+                        print(f"[FIX] OK - Valid JSON format: {summary_file.name}")
                         fix_results[summary_file.name] = True
                     except json.JSONDecodeError as e:
                         print(
-                            f"[FIX] ✗ Invalid JSON format in {summary_file.name}: {e}"
+                            f"[FIX] ERROR - Invalid JSON format in {summary_file.name}: {e}"
                         )
                         fix_results[summary_file.name] = False
 
@@ -239,7 +239,16 @@ class YouTubeOutputComparator:
                 with open(summary_file, "r", encoding="utf-8") as f:
                     content = f.read()
                 
-                # Try to parse JSON, handling malformed content with unescaped newlines
+                # Try to parse JSON, handling markdown blocks and malformed content
+                content = content.strip()
+                if content.startswith("```json"):
+                    content = content[len("```json"):].strip()
+                elif content.startswith("```"):
+                    content = content[len("```"):].strip()
+                
+                if content.endswith("```"):
+                    content = content[:-len("```")].strip()
+
                 try:
                     summary = json.loads(content)
                 except json.JSONDecodeError:
@@ -267,14 +276,16 @@ class YouTubeOutputComparator:
                         else:
                             fixed_content.append(char)
                     
-                    content = ''.join(fixed_content)
-                    summary = json.loads(content)
+                    try:
+                        summary = json.loads(''.join(fixed_content))
+                    except json.JSONDecodeError:
+                        summary = {}
 
                 summary_data[video_id] = summary
-                print(f"[SUMMARY] ✓ Loaded summary for: {video_id}")
+                print(f"[SUMMARY] OK - Loaded summary for: {video_id}")
 
             except Exception as e:
-                print(f"[SUMMARY] ✗ Error loading {summary_file.name}: {e}")
+                print(f"[SUMMARY] ERROR - Error loading {summary_file.name}")
 
         print(f"[SUMMARY] Successfully loaded {len(summary_data)} summaries")
         return summary_data
@@ -415,7 +426,7 @@ Only respond with valid JSON. Be specific and actionable in your analysis."""
             ]
         )
         print(
-            f"[AI] ✓ Completed: {successful_analyses}/{len(ai_insights)} analyses successful"
+            f"[AI] OK - Completed: {successful_analyses}/{len(ai_insights)} analyses successful"
         )
         return ai_insights
 
@@ -485,11 +496,11 @@ Limitations: {summary.get('limitations', [])}
                 ai_analysis = json.loads(ai_response)
                 total_time = time.time() - start_time
                 print(
-                    f"[AI-{thread_id}] ✓ Generated insights for {video_id} in {total_time:.2f}s (API: {api_time:.2f}s)"
+                    f"[AI-{thread_id}] OK - Generated insights for {video_id} in {total_time:.2f}s (API: {api_time:.2f}s)"
                 )
                 return ai_analysis
             except json.JSONDecodeError:
-                print(f"[AI-{thread_id}] ✗ Invalid JSON response for: {video_id}")
+                print(f"[AI-{thread_id}] ERROR - Invalid JSON response for: {video_id}")
                 return self._get_fallback_insights()
 
         except Exception as e:

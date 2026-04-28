@@ -168,7 +168,7 @@ class AcademicPapersRAG:
                 print("Loading existing index...")
                 self.index = self._load_existing_index()
                 if self.index:
-                    print("✓ Successfully loaded existing index")
+                    print("[SUCCESS] Successfully loaded existing index")
                     return True
 
             print("Creating new index...")
@@ -194,12 +194,12 @@ class AcademicPapersRAG:
             )
 
             end_time = time.time()
-            print(f"✓ Index created in {end_time - start_time:.2f} seconds")
+            print(f"[SUCCESS] Index created in {end_time - start_time:.2f} seconds")
 
             # Persist index
             print("Saving index to storage...")
             self.index.storage_context.persist(persist_dir=str(self.index_storage_path))
-            print("✓ Index saved successfully")
+            print("[SUCCESS] Index saved successfully")
 
             return True
 
@@ -253,7 +253,7 @@ class AcademicPapersRAG:
                 retriever=retriever,
             )
 
-            print("✓ Query engine setup successfully")
+            print("[SUCCESS] Query engine setup successfully")
             return True
 
         except Exception as e:
@@ -326,7 +326,7 @@ class AcademicPapersRAG:
                 "num_sources": len(sources),
             }
 
-            print(f"✓ Search completed in {end_time - start_time:.2f} seconds")
+            print(f"[SUCCESS] Search completed in {end_time - start_time:.2f} seconds")
             print(f"Found {len(sources)} relevant sources")
 
             return result
@@ -427,7 +427,7 @@ class AcademicPapersRAG:
             print("Failed to setup query engine")
             return False
 
-        print("✓ Academic Papers RAG System initialized successfully")
+        print("[SUCCESS] Academic Papers RAG System initialized successfully")
         return True
 
 

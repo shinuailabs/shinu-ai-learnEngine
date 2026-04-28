@@ -5,15 +5,24 @@ import {
   CheckCheck,
   Circle,
   Layers3,
-  LoaderCircle,
+  Loader2,
   Workflow,
+  Clock,
+  BarChart3,
+  Lightbulb,
+  GraduationCap,
+  ChevronRight,
+  BookOpen,
+  FileText,
+  Search,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react'
 import {
-  type ChangeEvent,
-  type FormEvent,
   type ReactNode,
   useEffect,
   useState,
+  useMemo,
 } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -21,78 +30,55 @@ import remarkGfm from 'remark-gfm'
 import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
-import type { AssignmentArtifact, RunBundle } from '../../lib/types'
+import type { AssignmentArtifact, RunBundle, PapersStatusResponse } from '../../lib/types'
 import { cn } from '../../lib/utils'
+import { PapersPanel } from '../papers/papers-panel'
 
 interface PipelineDashboardProps {
   activeRunId: string
   bundle?: RunBundle
   isLoading: boolean
   error?: string
-  searchQuery: string
-  maxVideos: number
-  transcriptLanguage: string
-  numWorkers: number
-  onSearchQueryChange: (value: string) => void
-  onMaxVideosChange: (value: number) => void
-  onTranscriptLanguageChange: (value: string) => void
-  onNumWorkersChange: (value: number) => void
   onStartRun: () => void
   isRunning: boolean
+  papersMutation: any
+  papersStatus?: PapersStatusResponse
+  onPapersQueryChange: (value: string) => void
+  papersQuery: string
 }
 
 type ProgressMap = Record<string, boolean>
 
-function SectionHeading({
-  title,
-  description,
-  action,
-}: {
-  title: string
-  description?: string
-  action?: ReactNode
-}) {
-  return (
-    <div className="mb-5 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
-      <div>
-        <h3 className="text-lg font-semibold tracking-[-0.03em] text-white">{title}</h3>
-        {description ? <p className="mt-1 text-sm text-zinc-400">{description}</p> : null}
-      </div>
-      {action}
-    </div>
-  )
-}
-
 function MarkdownBody({ markdown }: { markdown: string }) {
   return (
-    <div className="space-y-4 text-sm leading-7 text-zinc-300">
+    <div className="prose prose-sm prose-invert max-w-none space-y-4 text-sm leading-7 text-muted-foreground">
       <ReactMarkdown
         components={{
           a: ({ className, ...props }) => (
             <a
-              className={cn('font-medium text-white underline decoration-white/20 underline-offset-4', className)}
+              className={cn('font-medium text-primary underline decoration-primary/20 underline-offset-4 hover:decoration-primary', className)}
               rel="noreferrer"
               target="_blank"
               {...props}
             />
           ),
           h1: ({ className, ...props }) => (
-            <h1 className={cn('text-2xl font-semibold tracking-[-0.04em] text-white', className)} {...props} />
+            <h1 className={cn('text-2xl font-bold tracking-tight text-card-foreground', className)} {...props} />
           ),
           h2: ({ className, ...props }) => (
-            <h2 className={cn('text-xl font-semibold tracking-[-0.03em] text-white', className)} {...props} />
+            <h2 className={cn('text-xl font-bold tracking-tight text-card-foreground', className)} {...props} />
           ),
           h3: ({ className, ...props }) => (
-            <h3 className={cn('text-base font-semibold text-white', className)} {...props} />
+            <h3 className={cn('text-lg font-bold text-card-foreground', className)} {...props} />
           ),
-          p: ({ className, ...props }) => <p className={cn('text-zinc-300', className)} {...props} />,
-          ul: ({ className, ...props }) => <ul className={cn('space-y-2 pl-5', className)} {...props} />,
-          ol: ({ className, ...props }) => <ol className={cn('space-y-2 pl-5', className)} {...props} />,
-          li: ({ className, ...props }) => <li className={cn('text-zinc-300', className)} {...props} />,
+          p: ({ className, ...props }) => <p className={cn('text-muted-foreground', className)} {...props} />,
+          ul: ({ className, ...props }) => <ul className={cn('list-disc space-y-2 pl-5', className)} {...props} />,
+          ol: ({ className, ...props }) => <ol className={cn('list-decimal space-y-2 pl-5', className)} {...props} />,
+          li: ({ className, ...props }) => <li className={cn('text-muted-foreground', className)} {...props} />,
           pre: ({ className, ...props }) => (
             <pre
               className={cn(
-                'overflow-x-auto rounded-2xl border border-white/8 bg-black/20 p-4 text-[13px] leading-6 text-zinc-100',
+                'overflow-x-auto rounded-xl border border-border bg-muted/50 p-4 text-[13px] leading-6 text-card-foreground',
                 className,
               )}
               {...props}
@@ -100,7 +86,7 @@ function MarkdownBody({ markdown }: { markdown: string }) {
           ),
           code: ({ className, ...props }) => (
             <code
-              className={cn('rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[0.92em] text-zinc-100', className)}
+              className={cn('rounded bg-muted px-1.5 py-0.5 text-[0.9em] text-card-foreground', className)}
               {...props}
             />
           ),
@@ -113,17 +99,6 @@ function MarkdownBody({ markdown }: { markdown: string }) {
   )
 }
 
-function formatDate(value: string) {
-  if (!value) return 'Unavailable'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
 function getVideoThumbnail(videoId: string) {
   return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
 }
@@ -133,60 +108,24 @@ function trimText(value: string, maxLength: number) {
   return `${value.slice(0, maxLength - 1).trimEnd()}...`
 }
 
-function splitBreakdown(entries: Array<Record<string, unknown>>) {
-  const tools = entries.filter((entry) => entry.type === 'tool')
-  const processes = entries.filter((entry) => entry.type === 'process')
-  const architecture = entries.filter((entry) => entry.type !== 'tool' && entry.type !== 'process')
-  return { tools, processes, architecture }
-}
-
-function getAssignmentStorageKey(runId: string, videoId: string) {
-  return `atlas-assignment-progress:${runId}:${videoId}`
-}
-
-function getAssignmentProgressItems(item: AssignmentArtifact) {
-  if (item.checklist.length > 0) {
-    return item.checklist
-  }
-
-  if (item.sections.length > 0) {
-    return item.sections.map((section) => ({
-      id: section.id,
-      label: section.title,
-    }))
-  }
-
-  return item.markdown
-    ? [
-        {
-          id: 'review-assignment',
-          label: 'Review assignment',
-        },
-      ]
-    : []
-}
-
 export function PipelineDashboard({
   activeRunId,
   bundle,
   isLoading,
   error,
-  searchQuery,
-  maxVideos,
-  transcriptLanguage,
-  numWorkers,
-  onSearchQueryChange,
-  onMaxVideosChange,
-  onTranscriptLanguageChange,
-  onNumWorkersChange,
-  onStartRun,
   isRunning,
+  papersMutation,
+  papersStatus,
+  onPapersQueryChange,
+  papersQuery,
 }: PipelineDashboardProps) {
-  const videos = bundle?.videos.videos ?? []
-  const transcripts = bundle?.transcripts.items ?? []
-  const summaries = bundle?.summaries.items ?? []
-  const comparison = bundle?.comparison.rows ?? []
-  const assignments = bundle?.assignments.items ?? []
+  const videos = useMemo(() => bundle?.videos.videos ?? [], [bundle])
+  const transcripts = useMemo(() => bundle?.transcripts.items ?? [], [bundle])
+  const summaries = useMemo(() => bundle?.summaries.items ?? [], [bundle])
+  const comparison = useMemo(() => bundle?.comparison.rows ?? [], [bundle])
+  const assignments = useMemo(() => bundle?.assignments.items ?? [], [bundle])
+  
+  const [activeTab, setActiveTab] = useState('roadmap')
   const [assignmentProgress, setAssignmentProgress] = useState<Record<string, ProgressMap>>({})
 
   useEffect(() => {
@@ -197,7 +136,8 @@ export function PipelineDashboard({
 
     const nextState: Record<string, ProgressMap> = {}
     for (const item of assignments) {
-      const saved = localStorage.getItem(getAssignmentStorageKey(activeRunId, item.video_id))
+      const storageKey = `shinu-learn-engine-assignment-progress:${activeRunId}:${item.video_id}`
+      const saved = localStorage.getItem(storageKey)
       if (!saved) {
         nextState[item.video_id] = {}
         continue
@@ -209,565 +149,403 @@ export function PipelineDashboard({
         nextState[item.video_id] = {}
       }
     }
-
-    setAssignmentProgress(nextState)
-  }, [activeRunId, assignments])
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    onStartRun()
-  }
+    setAssignmentProgress(prev => {
+      const isSame = JSON.stringify(prev) === JSON.stringify(nextState)
+      return isSame ? prev : nextState
+    })
+  }, [activeRunId, bundle])
 
   const toggleAssignmentItem = (videoId: string, itemId: string) => {
     if (!activeRunId) return
-
     setAssignmentProgress((current) => {
       const nextVideoState = {
         ...(current[videoId] ?? {}),
         [itemId]: !(current[videoId] ?? {})[itemId],
       }
       localStorage.setItem(
-        getAssignmentStorageKey(activeRunId, videoId),
+        `shinu-learn-engine-assignment-progress:${activeRunId}:${videoId}`,
         JSON.stringify(nextVideoState),
       )
-      return {
-        ...current,
-        [videoId]: nextVideoState,
-      }
+      return { ...current, [videoId]: nextVideoState }
     })
   }
 
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[380px,1fr,320px]">
+        <div className="space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-24 w-full animate-pulse rounded-2xl bg-muted" />
+          ))}
+        </div>
+        <div className="h-[600px] w-full animate-pulse rounded-2xl bg-muted" />
+        <div className="space-y-4">
+          <div className="h-40 w-full animate-pulse rounded-2xl bg-muted" />
+          <div className="h-60 w-full animate-pulse rounded-2xl bg-muted" />
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card className="flex flex-col items-center justify-center p-12 text-center border-destructive/20 bg-destructive/5">
+        <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="text-xl font-bold text-card-foreground">Workspace Error</h3>
+        <p className="mt-2 text-muted-foreground">{error}</p>
+        <Button variant="secondary" className="mt-6" onClick={() => window.location.reload()}>
+          Retry Workspace Load
+        </Button>
+      </Card>
+    )
+  }
+
+  if (!bundle) {
+    return (
+      <Card className="flex flex-col items-center justify-center p-20 text-center border-dashed">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mb-6">
+          <BookOpen className="h-8 w-8 text-primary" />
+        </div>
+        <h3 className="text-2xl font-bold text-card-foreground">No Learning Session Active</h3>
+        <p className="mt-2 max-w-md text-muted-foreground">
+          Enter a topic in the search bar above to generate an AI-powered learning path, videos, and assignments.
+        </p>
+      </Card>
+    )
+  }
+
   return (
-    <section id="pipeline" className="space-y-8">
-      <motion.div
-        animate={{ opacity: 1, y: 0 }}
-        initial={{ opacity: 0, y: 20 }}
-        transition={{ duration: 0.4 }}
-      >
-        <Card className="mx-auto max-w-6xl overflow-hidden border-white/8 bg-[linear-gradient(180deg,rgba(24,27,33,0.96),rgba(16,18,22,0.92))] p-6 md:p-8">
-          <form onSubmit={handleSubmit}>
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
-              <label className="block xl:flex-[1.8]">
-                <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-zinc-500">
-                  Search query
-                </span>
-                <input
-                  className="h-12 w-full rounded-2xl border border-white/8 bg-white/[0.04] px-4 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-white/15"
-                  placeholder="CrewAI tutorial"
-                  value={searchQuery}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                    onSearchQueryChange(event.target.value)
-                  }
-                />
-              </label>
-
-              <label className="block xl:w-36">
-                <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-zinc-500">
-                  Max videos
-                </span>
-                <input
-                  className="h-12 w-full rounded-2xl border border-white/8 bg-white/[0.04] px-4 text-sm text-white outline-none focus:border-white/15"
-                  max={10}
-                  min={1}
-                  type="number"
-                  value={maxVideos}
-                  onChange={(event) => onMaxVideosChange(Number(event.target.value))}
-                />
-              </label>
-
-              <label className="block xl:w-44">
-                <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-zinc-500">
-                  Transcript language
-                </span>
-                <select
-                  className="h-12 w-full rounded-2xl border border-white/8 bg-white/[0.04] px-4 text-sm text-white outline-none focus:border-white/15"
-                  value={transcriptLanguage}
-                  onChange={(event) => onTranscriptLanguageChange(event.target.value)}
-                >
-                  {['en', 'es', 'fr', 'de', 'it', 'pt', 'ja', 'ko', 'zh'].map((language) => (
-                    <option key={language} className="bg-[#13161a]" value={language}>
-                      {language}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block xl:w-32">
-                <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-zinc-500">
-                  Workers
-                </span>
-                <input
-                  className="h-12 w-full rounded-2xl border border-white/8 bg-white/[0.04] px-4 text-sm text-white outline-none focus:border-white/15"
-                  max={16}
-                  min={0}
-                  type="number"
-                  value={numWorkers}
-                  onChange={(event) => onNumWorkersChange(Number(event.target.value))}
-                />
-              </label>
-
-              <Button
-                className="h-12 gap-2 px-5 xl:min-w-[170px]"
-                disabled={isRunning || !searchQuery.trim()}
-                type="submit"
-              >
-                {isRunning ? <LoaderCircle className="size-4 animate-spin" /> : <Workflow className="size-4" />}
-                {isRunning ? 'Running...' : 'Run'}
-              </Button>
-            </div>
-          </form>
-        </Card>
-      </motion.div>
-
-      <Card className="p-6">
-        <SectionHeading
-          title="Analysis workspace"
-          description="Structured video search, transcripts, summaries, comparison, and assignments."
-        />
-
-        {error ? (
-          <p className="rounded-2xl border border-red-400/20 bg-red-500/8 p-4 text-sm text-red-100">
-            {error}
-          </p>
-        ) : null}
-
-        {isLoading ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-28 animate-pulse rounded-[24px] border border-white/8 bg-white/[0.04]"
-              />
-            ))}
-          </div>
-        ) : null}
-
-        {!isLoading && bundle ? (
-          <Tabs.Root className="space-y-6" defaultValue="videos">
-            <Tabs.List className="flex flex-wrap gap-2 rounded-3xl border border-white/8 bg-black/10 p-2">
-              {[
-                ['videos', 'Search results'],
-                ['transcripts', 'Transcripts'],
-                ['summaries', 'Summaries'],
-                ['comparison', 'Comparison'],
-                ['assignments', 'Assignments'],
-              ].map(([value, label]) => (
-                <Tabs.Trigger
-                  key={value}
-                  className="rounded-2xl px-4 py-2 text-sm font-medium text-zinc-400 outline-none transition data-[state=active]:bg-white data-[state=active]:text-[#101217]"
-                  value={value}
-                >
-                  {label}
-                </Tabs.Trigger>
-              ))}
-            </Tabs.List>
-
-            <Tabs.Content className="space-y-4" value="videos">
-              <div className="grid gap-5 xl:grid-cols-2">
-                {videos.map((video) => (
-                  <Card key={video.video_id} className="overflow-hidden p-0">
-                    <div className="grid gap-0 md:grid-cols-[280px,minmax(0,1fr)]">
-                      <div className="relative aspect-video bg-black/30 md:aspect-auto">
-                        <img
-                          alt={video.title}
-                          className="h-full w-full object-cover"
-                          src={getVideoThumbnail(video.video_id)}
-                        />
-                        <div className="absolute bottom-3 right-3 rounded-lg bg-black/70 px-2 py-1 text-xs text-white">
-                          {video.duration}
-                        </div>
-                      </div>
-                      <div className="p-5">
-                        <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                          <span>{video.channel}</span>
-                          <span className="text-zinc-700">/</span>
-                          <span>{formatDate(video.published_at)}</span>
-                        </div>
-                        <h4 className="mt-3 text-xl font-semibold tracking-[-0.03em] text-white">
-                          {video.title}
-                        </h4>
-                        <p className="mt-3 text-sm leading-7 text-zinc-300">
-                          {trimText(video.description || 'No description available for this result.', 240)}
-                        </p>
-                        <div className="mt-5 flex items-center justify-between gap-3">
-                          <div className="flex flex-wrap gap-2">
-                            <Badge>{video.channel}</Badge>
-                            <Badge>{video.duration}</Badge>
-                          </div>
-                          <a
-                            className="inline-flex items-center gap-2 text-sm font-medium text-white"
-                            href={video.url}
-                            rel="noreferrer"
-                            target="_blank"
-                          >
-                            Watch
-                            <ArrowUpRight className="size-4" />
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </Tabs.Content>
-
-            <Tabs.Content className="space-y-4" value="transcripts">
-              {transcripts.map((item) => (
-                <Card key={item.video_id} className="p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h4 className="text-lg font-semibold text-white">{item.title}</h4>
-                      <p className="mt-1 text-sm text-zinc-400">{item.channel}</p>
-                    </div>
-                    <Badge>{item.available ? item.language : 'Missing'}</Badge>
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[380px,1fr,320px] animate-in">
+      {/* LEFT PANEL - Video Results */}
+      <aside className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-card-foreground">Video Sources</h3>
+          <Badge variant="secondary">{videos.length} Results</Badge>
+        </div>
+        <div className="flex max-h-[800px] flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
+          {videos.map((video) => (
+            <Card key={video.video_id} className="group overflow-hidden p-0 transition-all hover:ring-2 hover:ring-primary/30">
+              <div className="flex h-24 gap-4 p-3">
+                <div className="relative aspect-video flex-shrink-0 overflow-hidden rounded-lg bg-muted">
+                  <img src={getVideoThumbnail(video.video_id)} alt={video.title} className="h-full w-full object-cover transition-transform group-hover:scale-110" />
+                  <div className="absolute bottom-1 right-1 rounded bg-black/70 px-1 text-[10px] text-white">
+                    {video.duration}
                   </div>
-                  <p className="mt-4 max-h-[420px] overflow-y-auto whitespace-pre-wrap text-sm leading-7 text-zinc-300">
-                    {item.cleaned_text || 'No transcript available for this video yet.'}
-                  </p>
-                </Card>
-              ))}
-            </Tabs.Content>
-
-            <Tabs.Content className="space-y-5" value="summaries">
-              {summaries.map((item) => {
-                const breakdown = splitBreakdown(item.technical_breakdown)
-
-                return (
-                  <Card key={item.video_id} className="overflow-hidden p-0">
-                    <div className="border-b border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] px-6 py-5">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <h4 className="text-xl font-semibold tracking-[-0.03em] text-white">{item.title}</h4>
-                        <Badge>{item.channel}</Badge>
-                      </div>
-                    </div>
-
-                    <div className="space-y-6 p-6">
-                      <div className="grid gap-6 xl:grid-cols-[1.2fr,0.8fr]">
-                        <div className="rounded-[28px] border border-white/8 bg-[linear-gradient(145deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))] p-6">
-                          <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-500">Overview</p>
-                          <p className="mt-5 max-w-3xl text-[15px] leading-8 text-zinc-200">
-                            {item.high_level_overview}
-                          </p>
-                        </div>
-
-                        <div className="rounded-[28px] border border-white/8 bg-black/15 p-6">
-                          <SectionHeading
-                            title="Architecture"
-                            description="System structure and orchestration patterns."
-                          />
-                          {breakdown.architecture.length > 0 ? (
-                            <div className="space-y-4">
-                              {breakdown.architecture.map((entry, index) => (
-                                <div
-                                  key={`${item.video_id}-architecture-${index}`}
-                                  className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5"
-                                >
-                                  <p className="text-sm leading-7 text-zinc-300">
-                                    {String(entry.description ?? 'Architecture detail')}
-                                  </p>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-zinc-400">No explicit architecture notes were extracted.</p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="grid gap-6 xl:grid-cols-[0.95fr,1.05fr]">
-                        <div className="rounded-[28px] border border-white/8 bg-black/15 p-6">
-                          <SectionHeading
-                            title="Process flow"
-                            description="The main implementation sequence broken into steps."
-                          />
-                          <div className="space-y-4">
-                            {breakdown.processes.map((entry, index) => (
-                              <div
-                                key={`${item.video_id}-process-${index}`}
-                                className="relative overflow-hidden rounded-[24px] border border-white/8 bg-white/[0.03] p-5"
-                              >
-                                <div className="absolute inset-y-0 left-0 w-px bg-white/10" />
-                                <div className="pl-4">
-                                  <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">
-                                    Step {String(entry.step_number ?? index + 1)}
-                                  </p>
-                                  <p className="mt-3 text-sm leading-7 text-zinc-300">
-                                    {String(entry.description ?? '')}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="rounded-[28px] border border-white/8 bg-black/15 p-6">
-                          <SectionHeading
-                            title="Tools"
-                            description="Frameworks, models, and systems referenced in the walkthrough."
-                          />
-                          <div className="grid gap-4 md:grid-cols-2">
-                            {breakdown.tools.map((entry, index) => (
-                              <div
-                                key={`${item.video_id}-tool-${index}`}
-                                className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5"
-                              >
-                                <p className="text-sm font-medium text-white">
-                                  {String(entry.name ?? 'Tool')}
-                                </p>
-                                <p className="mt-3 text-sm leading-7 text-zinc-300">
-                                  {String(entry.purpose ?? '')}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid gap-6 xl:grid-cols-3">
-                        <div className="rounded-[28px] border border-emerald-400/12 bg-emerald-400/[0.04] p-6">
-                          <SectionHeading title="Insights" description="Key takeaways and notable design decisions." />
-                          <ul className="space-y-3">
-                            {item.insights.map((insight, index) => (
-                              <li
-                                key={insight}
-                                className="rounded-[20px] border border-white/8 bg-black/10 px-4 py-4 text-sm leading-7 text-zinc-300"
-                              >
-                                <span className="mr-3 text-zinc-500">{String(index + 1).padStart(2, '0')}</span>
-                                {insight}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        <div className="rounded-[28px] border border-sky-400/12 bg-sky-400/[0.04] p-6">
-                          <SectionHeading title="Applications" description="How the concepts translate into practical use." />
-                          <ul className="space-y-3">
-                            {item.applications.map((application, index) => (
-                              <li
-                                key={application}
-                                className="rounded-[20px] border border-white/8 bg-black/10 px-4 py-4 text-sm leading-7 text-zinc-300"
-                              >
-                                <span className="mr-3 text-zinc-500">{String(index + 1).padStart(2, '0')}</span>
-                                {application}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        <div className="rounded-[28px] border border-amber-400/12 bg-amber-400/[0.04] p-6">
-                          <SectionHeading title="Limitations" description="Trade-offs, caveats, and implementation constraints." />
-                          <ul className="space-y-3">
-                            {item.limitations.map((limitation, index) => (
-                              <li
-                                key={limitation}
-                                className="rounded-[20px] border border-white/8 bg-black/10 px-4 py-4 text-sm leading-7 text-zinc-300"
-                              >
-                                <span className="mr-3 text-zinc-500">{String(index + 1).padStart(2, '0')}</span>
-                                {limitation}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                )
-              })}
-            </Tabs.Content>
-
-            <Tabs.Content className="space-y-4" value="comparison">
-              <Card className="overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-white/8 text-left text-sm">
-                    <thead className="bg-black/10 text-zinc-500">
-                      <tr>
-                        {[
-                          'Title',
-                          'Difficulty',
-                          'Teaching style',
-                          'Depth',
-                          'Practical value',
-                          'Audience',
-                          'Technologies',
-                        ].map((heading) => (
-                          <th key={heading} className="px-4 py-4 font-medium">
-                            {heading}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/6">
-                      {comparison.map((row) => (
-                        <tr key={row.video_id} className="align-top">
-                          <td className="px-4 py-4">
-                            <p className="font-medium text-white">{row.title}</p>
-                            <p className="mt-2 text-xs text-zinc-500">{row.channel}</p>
-                          </td>
-                          <td className="px-4 py-4 text-zinc-200">{row.difficulty}</td>
-                          <td className="px-4 py-4 text-zinc-200">{row.teaching_style}</td>
-                          <td className="px-4 py-4 text-zinc-200">{row.content_depth}</td>
-                          <td className="px-4 py-4 text-zinc-200">{row.practical_value}</td>
-                          <td className="px-4 py-4 text-zinc-200">{row.target_audience}</td>
-                          <td className="px-4 py-4 text-zinc-200">
-                            <div className="flex flex-wrap gap-2">
-                              {row.key_technologies.map((technology) => (
-                                <Badge key={technology}>{technology}</Badge>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
                 </div>
-              </Card>
-
-              <div className="grid gap-4 lg:grid-cols-[0.72fr,1.28fr]">
-                <Card className="p-5">
-                  <SectionHeading title="Recommendations" />
-                  <ul className="space-y-3 text-sm leading-7 text-zinc-300">
-                    {bundle.comparison.recommendations.map((recommendation) => (
-                      <li key={recommendation}>• {recommendation}</li>
-                    ))}
-                  </ul>
-                </Card>
-                <Card className="p-5">
-                  <SectionHeading title="Insights report" />
-                  <pre className="whitespace-pre-wrap text-sm leading-7 text-zinc-300">
-                    {bundle.comparison.insights_report}
-                  </pre>
-                </Card>
+                <div className="flex flex-col justify-center overflow-hidden">
+                  <p className="truncate text-xs font-medium text-primary">{video.channel}</p>
+                  <h4 className="mt-1 line-clamp-2 text-sm font-semibold leading-tight text-card-foreground">
+                    {video.title}
+                  </h4>
+                </div>
               </div>
-            </Tabs.Content>
+            </Card>
+          ))}
+        </div>
+      </aside>
 
-            <Tabs.Content className="space-y-5" value="assignments">
-              <AnimatePresence mode="popLayout">
-                {assignments.map((item) => {
-                  const progressItems = getAssignmentProgressItems(item)
-                  const completedCount = progressItems.filter(
-                    (progressItem) => assignmentProgress[item.video_id]?.[progressItem.id],
-                  ).length
-                  const progressPercent =
-                    progressItems.length > 0
-                      ? Math.round((completedCount / progressItems.length) * 100)
-                      : 0
+      {/* CENTER PANEL - Workspace */}
+      <main className="flex flex-col gap-6">
+        <Card className="flex flex-col overflow-hidden border-none bg-card/50 shadow-xl p-0">
+          <Tabs.Root value={activeTab} onValueChange={setActiveTab} className="flex flex-col">
+            <div className="border-b border-border bg-muted/30 px-6 py-2">
+              <Tabs.List className="flex gap-2">
+                {[
+                  ['roadmap', 'Roadmap'],
+                  ['transcripts', 'Transcripts'],
+                  ['summaries', 'Summaries'],
+                  ['comparison', 'Comparison'],
+                  ['assignments', 'Assignments'],
+                  ['papers', 'Research'],
+                ].map(([value, label]) => (
+                  <Tabs.Trigger
+                    key={value}
+                    value={value}
+                    className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md"
+                  >
+                    {label}
+                  </Tabs.Trigger>
+                ))}
+              </Tabs.List>
+            </div>
 
-                  return (
-                    <motion.div
-                      key={item.video_id}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -18 }}
-                      initial={{ opacity: 0, y: 18 }}
-                    >
-                      <Card className="p-6">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <h4 className="text-xl font-semibold tracking-[-0.03em] text-white">
-                            {item.title}
-                          </h4>
-                          <Badge>{item.channel}</Badge>
-                          <Badge>{item.available ? 'Ready' : 'Missing'}</Badge>
-                        </div>
+            <div className="p-8 min-h-[600px]">
+              <Tabs.Content value="roadmap" className="animate-in space-y-8">
+                <div className="space-y-4">
+                  <h2 className="text-3xl font-bold text-card-foreground tracking-tight">Your Learning Roadmap</h2>
+                  <p className="text-muted-foreground">We've structured the content from {videos.length} videos into a sequential learning path.</p>
+                </div>
 
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {Object.entries(item.display_metadata).map(([key, value]) => (
-                            <Badge key={key}>
-                              {key.replaceAll('_', ' ')}: {value}
-                            </Badge>
-                          ))}
-                        </div>
-
-                        <div className="mt-6 grid gap-6 xl:grid-cols-[340px,minmax(0,1fr)]">
-                          <Card className="h-fit p-5">
-                            <div className="flex items-center justify-between gap-4">
-                              <div>
-                                <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">
-                                  Progress
-                                </p>
-                                <p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-white">
-                                  {progressPercent}%
-                                </p>
-                              </div>
-                              <div className="rounded-2xl border border-white/8 bg-white/[0.04] p-3 text-white">
-                                <CheckCheck className="size-5" />
-                              </div>
-                            </div>
-
-                            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/[0.06]">
-                              <div
-                                className="h-full rounded-full bg-white transition-[width]"
-                                style={{ width: `${progressPercent}%` }}
-                              />
-                            </div>
-
-                            <div className="mt-6 space-y-3">
-                              {progressItems.map((progressItem) => {
-                                const checked = Boolean(
-                                  assignmentProgress[item.video_id]?.[progressItem.id],
-                                )
-
-                                return (
-                                  <button
-                                    key={progressItem.id}
-                                    className="flex w-full items-start gap-3 rounded-2xl border border-white/8 bg-black/10 px-3 py-3 text-left transition hover:bg-white/[0.03]"
-                                    onClick={() => toggleAssignmentItem(item.video_id, progressItem.id)}
-                                    type="button"
-                                  >
-                                    <span className="pt-0.5 text-white">
-                                      {checked ? (
-                                        <CheckCheck className="size-4" />
-                                      ) : (
-                                        <Circle className="size-4" />
-                                      )}
-                                    </span>
-                                    <span className={cn('text-sm leading-6 text-zinc-300', checked && 'text-white')}>
-                                      {progressItem.label}
-                                    </span>
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          </Card>
-
-                          <div className="space-y-4">
-                            {item.sections.length > 0 ? (
-                              item.sections.map((section) => (
-                                <Card key={section.id} className="p-5">
-                                  <SectionHeading title={section.title} />
-                                  <MarkdownBody markdown={section.markdown} />
-                                </Card>
-                              ))
-                            ) : (
-                              <Card className="p-5">
-                                <SectionHeading title="Assignment" />
-                                <MarkdownBody markdown={item.markdown || 'No assignment content available.'} />
-                              </Card>
-                            )}
-                          </div>
+                <div className="space-y-6">
+                  {summaries.slice(0, 4).map((item, index) => (
+                    <div key={item.video_id} className="relative flex gap-6">
+                      {index !== 3 && <div className="absolute left-6 top-10 bottom-[-24px] w-px bg-border" />}
+                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-primary shadow-inner">
+                        {index + 1}
+                      </div>
+                      <Card className="flex-1 p-6 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setActiveTab('summaries')}>
+                        <h4 className="text-lg font-bold text-card-foreground">{item.title}</h4>
+                        <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{item.high_level_overview}</p>
+                        <div className="mt-4 flex items-center gap-4">
+                          <Badge variant="secondary" className="bg-muted">15-20 mins</Badge>
+                          <span className="flex items-center gap-1 text-xs font-medium text-primary">
+                            Explore Module <ChevronRight className="h-3 w-3" />
+                          </span>
                         </div>
                       </Card>
-                    </motion.div>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="flex justify-center pt-6">
+                  <Button size="lg" className="h-14 px-10 text-lg shadow-xl" onClick={() => setActiveTab('summaries')}>
+                    Start Learning Now
+                  </Button>
+                </div>
+              </Tabs.Content>
+
+              <Tabs.Content value="transcripts" className="animate-in space-y-6">
+                {transcripts.map((item) => (
+                  <div key={item.video_id} className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xl font-bold text-card-foreground">{item.title}</h4>
+                      <Badge>{item.language}</Badge>
+                    </div>
+                    <Card className="p-6 bg-muted/20">
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                        {item.cleaned_text || 'No transcript available.'}
+                      </p>
+                    </Card>
+                  </div>
+                ))}
+              </Tabs.Content>
+
+              <Tabs.Content value="summaries" className="animate-in space-y-8">
+                {summaries.map((item) => (
+                  <div key={item.video_id} className="space-y-6">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 flex-shrink-0 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <FileText className="h-5 w-5 text-primary" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-card-foreground">{item.title}</h3>
+                    </div>
+                    <MarkdownBody markdown={item.high_level_overview} />
+                    <div className="grid gap-6 md:grid-cols-2">
+                       <Card className="p-6 border-emerald-500/20 bg-emerald-500/5">
+                          <h5 className="flex items-center gap-2 font-bold text-emerald-500 mb-4">
+                            <Lightbulb className="h-4 w-4" /> Key Insights
+                          </h5>
+                          <ul className="space-y-3">
+                            {item.insights.map((insight, i) => (
+                              <li key={i} className="flex gap-3 text-sm text-muted-foreground">
+                                <span className="text-emerald-500 mt-1 font-bold">✓</span> {insight}
+                              </li>
+                            ))}
+                          </ul>
+                       </Card>
+                       <Card className="p-6 border-amber-500/20 bg-amber-500/5">
+                          <h5 className="flex items-center gap-2 font-bold text-amber-500 mb-4">
+                            <AlertCircle className="h-4 w-4" /> Limitations
+                          </h5>
+                          <ul className="space-y-3">
+                            {item.limitations.map((lim, i) => (
+                              <li key={i} className="flex gap-3 text-sm text-muted-foreground">
+                                <span className="text-amber-500 mt-1 font-bold">•</span> {lim}
+                              </li>
+                            ))}
+                          </ul>
+                       </Card>
+                    </div>
+                  </div>
+                ))}
+              </Tabs.Content>
+
+              <Tabs.Content value="comparison" className="animate-in space-y-6">
+                <Card className="overflow-hidden border-border">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-muted/50 text-muted-foreground">
+                        <tr>
+                          <th className="px-6 py-4 font-semibold uppercase tracking-wider">Topic</th>
+                          <th className="px-6 py-4 font-semibold uppercase tracking-wider">Depth</th>
+                          <th className="px-6 py-4 font-semibold uppercase tracking-wider">Difficulty</th>
+                          <th className="px-6 py-4 font-semibold uppercase tracking-wider">Style</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {comparison.map((row) => (
+                          <tr key={row.video_id} className="hover:bg-muted/30">
+                            <td className="px-6 py-4 font-medium text-card-foreground">{row.title}</td>
+                            <td className="px-6 py-4 text-muted-foreground">{row.content_depth}</td>
+                            <td className="px-6 py-4 text-muted-foreground">{row.difficulty}</td>
+                            <td className="px-6 py-4 text-muted-foreground">{row.teaching_style}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              </Tabs.Content>
+
+              <Tabs.Content value="assignments" className="animate-in space-y-10">
+                {assignments.map((item) => {
+                  const progressItems = item.checklist.length > 0 
+                    ? item.checklist 
+                    : item.sections.map(s => ({ id: s.id, label: s.title }))
+                  const completedCount = progressItems.filter(p => assignmentProgress[item.video_id]?.[p.id]).length
+                  const progressPercent = progressItems.length > 0 ? Math.round((completedCount / progressItems.length) * 100) : 0
+
+                  return (
+                    <div key={item.video_id} className="space-y-6">
+                      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="space-y-2">
+                          <h3 className="text-2xl font-bold text-card-foreground">📝 AI Generated Assignment</h3>
+                          <p className="text-sm text-muted-foreground">Practical tasks based on: {item.title}</p>
+                        </div>
+                        <div className="w-full max-w-[200px] space-y-2">
+                          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-primary">
+                            <span>Progress</span>
+                            <span>{progressPercent}%</span>
+                          </div>
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-muted shadow-inner">
+                             <motion.div 
+                               className="h-full bg-primary" 
+                               initial={{ width: 0 }}
+                               animate={{ width: `${progressPercent}%` }}
+                               transition={{ duration: 0.5 }}
+                             />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-8 lg:grid-cols-[1fr,300px]">
+                        <div className="space-y-6">
+                          {item.sections.length > 0 ? (
+                            item.sections.map((section) => (
+                              <Card key={section.id} className="p-8">
+                                <h4 className="text-xl font-bold text-card-foreground mb-4">{section.title}</h4>
+                                <MarkdownBody markdown={section.markdown} />
+                                <div className="mt-8 flex gap-4">
+                                  <Button className="h-11 px-8">Submit Answer</Button>
+                                  <Button variant="secondary" className="h-11 px-8">Generate Solution</Button>
+                                </div>
+                              </Card>
+                            ))
+                          ) : (
+                            <Card className="p-8">
+                               <h4 className="text-xl font-bold text-card-foreground mb-4">Core Task</h4>
+                               <MarkdownBody markdown={item.markdown || 'No task content available.'} />
+                               <div className="mt-8 flex gap-4">
+                                  <Button className="h-11 px-8">Submit Answer</Button>
+                                  <Button variant="secondary" className="h-11 px-8">Generate Solution</Button>
+                                </div>
+                            </Card>
+                          )}
+                        </div>
+
+                        <div className="space-y-6">
+                          <h5 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Task Checklist</h5>
+                          <div className="space-y-3">
+                            {progressItems.map((task) => (
+                              <button
+                                key={task.id}
+                                onClick={() => toggleAssignmentItem(item.video_id, task.id)}
+                                className={cn(
+                                  "flex w-full items-center gap-3 rounded-xl border border-border p-4 text-left transition-all",
+                                  assignmentProgress[item.video_id]?.[task.id] 
+                                    ? "bg-primary/10 border-primary/30" 
+                                    : "bg-muted/30 hover:bg-muted/50"
+                                )}
+                              >
+                                {assignmentProgress[item.video_id]?.[task.id] 
+                                  ? <CheckCircle2 className="h-5 w-5 text-primary" />
+                                  : <Circle className="h-5 w-5 text-muted-foreground" />
+                                }
+                                <span className={cn("text-sm font-medium", assignmentProgress[item.video_id]?.[task.id] ? "text-primary" : "text-card-foreground")}>
+                                  {task.label}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   )
                 })}
-              </AnimatePresence>
-            </Tabs.Content>
-          </Tabs.Root>
-        ) : null}
+              </Tabs.Content>
 
-        {!isLoading && !bundle ? (
-          <Card className="border-dashed border-white/10 p-10 text-center">
-            <div className="mx-auto flex max-w-md flex-col items-center">
-              <div className="rounded-2xl border border-white/8 bg-white/[0.04] p-3 text-white">
-                <Layers3 className="size-5" />
-              </div>
-              <h3 className="mt-4 text-lg font-semibold text-white">No workspace loaded</h3>
-              <p className="mt-2 text-sm leading-7 text-zinc-400">
-                Start a run to populate the workspace with YouTube search results, summaries, comparison,
-                and assignments.
-              </p>
+              <Tabs.Content value="papers" className="animate-in">
+                <PapersPanel
+                  isLoading={papersMutation.isPending}
+                  onQueryChange={onPapersQueryChange}
+                  onSubmit={() => papersMutation.mutate()}
+                  query={papersQuery}
+                  result={papersMutation.data}
+                  status={papersStatus}
+                />
+              </Tabs.Content>
             </div>
-          </Card>
-        ) : null}
-      </Card>
-    </section>
+          </Tabs.Root>
+        </Card>
+      </main>
+
+      {/* RIGHT PANEL - AI Insights */}
+      <aside className="flex flex-col gap-8">
+        <Card className="p-6 space-y-6">
+          <div className="flex items-center gap-3">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <h3 className="font-bold text-card-foreground">AI Insights</h3>
+          </div>
+          
+          <div className="space-y-6">
+            <div className="space-y-3">
+               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Session Stats</p>
+               <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded-xl bg-muted/50 p-3">
+                    <p className="text-[10px] uppercase text-muted-foreground">Difficulty</p>
+                    <p className="text-sm font-bold text-card-foreground">Beginner</p>
+                  </div>
+                  <div className="rounded-xl bg-muted/50 p-3">
+                    <p className="text-[10px] uppercase text-muted-foreground">Est. Time</p>
+                    <p className="text-sm font-bold text-card-foreground">~45 mins</p>
+                  </div>
+               </div>
+            </div>
+
+            <div className="space-y-3">
+               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Key Concepts</p>
+               <div className="flex flex-wrap gap-2">
+                 {['AI Agents', 'LLM Workflow', 'Process Orchestration', 'Multi-Agent systems'].map(tag => (
+                   <Badge key={tag} className="bg-primary/5 hover:bg-primary/10 transition-colors border-none py-1.5">{tag}</Badge>
+                 ))}
+               </div>
+            </div>
+
+            <div className="space-y-3 pt-2">
+               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Next Up</p>
+               <div className="space-y-2">
+                 <div className="flex items-center gap-3 rounded-xl bg-primary/5 p-3 text-sm font-medium text-primary cursor-pointer hover:bg-primary/10 transition-all border border-primary/10">
+                   <div className="h-2 w-2 rounded-full bg-primary" />
+                   LangGraph Masterclass
+                 </div>
+                 <div className="flex items-center gap-3 rounded-xl bg-muted/50 p-3 text-sm font-medium text-muted-foreground cursor-pointer hover:bg-muted/80 transition-all">
+                   <div className="h-2 w-2 rounded-full bg-muted-foreground" />
+                   AutoGen with Python
+                 </div>
+               </div>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6 bg-primary/5 border-primary/20">
+           <h4 className="flex items-center gap-2 font-bold text-primary text-sm mb-3">
+             <GraduationCap className="h-4 w-4" /> Learning Tip
+           </h4>
+           <p className="text-xs leading-relaxed text-muted-foreground">
+             Try following the implementation steps in the **Summaries** tab before attempting the **Assignments**. Hands-on coding is the fastest way to master AI workflows.
+           </p>
+        </Card>
+      </aside>
+    </div>
   )
 }

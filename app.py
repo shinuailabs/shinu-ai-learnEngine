@@ -1,7 +1,7 @@
 """
-Atlas - AI-Powered Content Analysis Platform
+Shinu Learn Engine - AI-Powered Learning Intelligence Platform
 
-This script provides a comprehensive web-based interface for AI-powered content analysis using Gradio.
+This script provides a comprehensive web-based interface for AI-powered learning intelligence using Gradio.
 It integrates multiple analysis pipelines (YouTube processing, academic papers RAG, educational content generation) into a unified platform.
 
 Key Features:
@@ -197,7 +197,7 @@ def step1_search_videos(
         
         # Fallback: Use existing pipeline output folder if API failed or demo mode
         if not videos:
-            fallback_folder = "/Users/ishandutta/Documents/code/atlas/pipeline_output_1759513972"
+            fallback_folder = "pipeline_output_1759513972"
             if os.path.exists(fallback_folder):
                 print(f"[FALLBACK] Using read-only pipeline output: {fallback_folder}")
                 
@@ -248,7 +248,7 @@ def step1_search_videos(
                         return pipeline_state["search_results"]
             
             if demo_mode:
-                return "❌ Demo data not found. Please ensure the fallback folder exists at: /Users/ishandutta/Documents/code/atlas/pipeline_output_1759513972"
+                return "❌ Demo data not found. Please ensure the fallback folder exists at: pipeline_output_1759513972"
             return "❌ YouTube API unavailable and no fallback data found. Please check your API key."
 
     except Exception as e:
@@ -1130,6 +1130,7 @@ def generate_comparison_table_with_script(pipeline_output_folder: str) -> str:
 
         # Table header - include comprehensive columns from the comparison script
         key_columns = [
+            "Video",
             "Title",
             "Channel",
             "Published",
@@ -1143,28 +1144,31 @@ def generate_comparison_table_with_script(pipeline_output_folder: str) -> str:
             "Key Technologies",
             "Complexity Score",
         ]
-        available_columns = [col for col in key_columns if col in comparison_df.columns]
+        # "Video" is a virtual column we build from Video ID + URL; always available
+        available_columns = ["Video"] + [col for col in key_columns[1:] if col in comparison_df.columns]
 
         # Define column widths for better formatting
         column_widths = {
-            "Title": "20%",
-            "Channel": "10%",
-            "Published": "8%",
-            "Difficulty": "8%",
-            "Teaching Style": "10%",
+            "Video": "8%",
+            "Title": "18%",
+            "Channel": "9%",
+            "Published": "7%",
+            "Difficulty": "7%",
+            "Teaching Style": "9%",
             "Content Depth": "8%",
-            "Learning Outcome": "15%",
+            "Learning Outcome": "13%",
             "Target Audience": "8%",
-            "Prerequisites": "10%",
-            "Tools Count": "6%",
-            "Key Technologies": "12%",
-            "Complexity Score": "6%",
+            "Prerequisites": "9%",
+            "Tools Count": "5%",
+            "Key Technologies": "10%",
+            "Complexity Score": "5%",
         }
 
         html_result += "<thead>\n"
         html_result += '<tr style="background-color: #ffffff; color: #000000; border-bottom: 3px solid #000000;">\n'
         for col in available_columns:
             icon = {
+                "Video": "🎬",
                 "Title": "📺",
                 "Channel": "📻",
                 "Published": "📅",
@@ -1191,20 +1195,52 @@ def generate_comparison_table_with_script(pipeline_output_folder: str) -> str:
             row_color = "#ffffff" if i % 2 == 1 else "#f8f9fa"
             text_color = "#000000"  # Force black text
 
+            # Grab video URL and ID for thumbnail generation
+            video_url = str(row.get("URL", "")).strip()
+            video_id  = str(row.get("Video ID", "")).strip()
+            # Fallback: extract video_id from URL if not a dedicated column
+            if not video_id and "v=" in video_url:
+                video_id = video_url.split("v=")[-1].split("&")[0]
+            thumbnail_url = f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg" if video_id else ""
+
             html_result += f'<tr style="background-color: {row_color};">\n'
 
             for col in available_columns:
+                # ── Virtual "Video" thumbnail column ──────────────────────────
+                if col == "Video":
+                    if thumbnail_url and video_url:
+                        html_result += (
+                            f'<td style="padding: 6px; border: 1px solid #333333; text-align: center; '
+                            f'vertical-align: middle; background-color: {row_color};">'
+                            f'<a href="{video_url}" target="_blank" rel="noopener noreferrer" '
+                            f'title="Open on YouTube">'
+                            f'<img src="{thumbnail_url}" '
+                            f'style="width: 96px; height: 54px; object-fit: cover; border-radius: 4px; '
+                            f'border: 1px solid #cccccc; display: block; margin: 0 auto;" '
+                            f'onerror="this.style.display=\'none\'" />'
+                            f'<span style="font-size: 10px; color: #555; display: block; margin-top: 3px;">▶ Watch</span>'
+                            f'</a></td>\n'
+                        )
+                    else:
+                        html_result += f'<td style="padding: 6px; border: 1px solid #333333; text-align: center; background-color: {row_color};">—</td>\n'
+                    continue
+
                 value = str(row.get(col, "N/A"))
 
                 # Truncate titles and adjust text based on column
                 if col == "Title":
-                    value = value[:80] + "..." if len(str(value)) > 80 else value
+                    title_text = value[:80] + "..." if len(value) > 80 else value
+                    # Make title a clickable link if URL available
+                    if video_url:
+                        value = f'<a href="{video_url}" target="_blank" rel="noopener noreferrer" style="color: #1a56db; text-decoration: none; font-weight: 500;" title="Open on YouTube">{title_text}</a>'
+                    else:
+                        value = title_text
                 elif col == "Learning Outcome":
-                    value = value[:100] + "..." if len(str(value)) > 100 else value
+                    value = value[:100] + "..." if len(value) > 100 else value
                 elif col == "Prerequisites":
-                    value = value[:80] + "..." if len(str(value)) > 80 else value
+                    value = value[:80] + "..." if len(value) > 80 else value
                 elif col == "Key Technologies":
-                    value = value[:60] + "..." if len(str(value)) > 60 else value
+                    value = value[:60] + "..." if len(value) > 60 else value
 
                 # Style categorical columns with colors
                 if col in ["Difficulty", "Content Depth", "Teaching Style"]:
@@ -1271,13 +1307,25 @@ def generate_comparison_table_with_script(pipeline_output_folder: str) -> str:
                         "Project-based": "#6f42c1",
                         "Theory-focused": "#fd7e14",
                         "Mixed": "#6c757d",
-                        # Default
-                        "Unknown": "#6c757d",
                     }
-                    bg_color = color_map.get(value, "#6c757d")
-                    html_result += f'<td style="padding: 12px; border: 1px solid #333333; text-align: center; background-color: {row_color}; vertical-align: middle; min-width: 80px;">\n'
-                    html_result += f'<span style="background-color: {bg_color}; color: #ffffff; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; white-space: nowrap; display: inline-block;">{value}</span>\n'
-                    html_result += f"</td>\n"
+
+                    is_unknown = value.lower() in ("unknown", "n/a", "nan", "none", "")
+                    if is_unknown:
+                        # Show a distinct warning badge instead of plain Unknown
+                        html_result += (
+                            f'<td style="padding: 12px; border: 1px solid #333333; text-align: center; '
+                            f'background-color: {row_color}; vertical-align: middle; min-width: 80px;">\n'
+                            f'<span style="background-color: #fff3cd; color: #856404; padding: 5px 8px; '
+                            f'border-radius: 6px; font-size: 11px; font-weight: bold; border: 1px solid #ffc107; '
+                            f'white-space: nowrap; display: inline-block;" title="AI analysis not available — run summaries first">'
+                            f'⚠ No data</span>\n'
+                            f'</td>\n'
+                        )
+                    else:
+                        bg_color = color_map.get(value, "#6c757d")
+                        html_result += f'<td style="padding: 12px; border: 1px solid #333333; text-align: center; background-color: {row_color}; vertical-align: middle; min-width: 80px;">\n'
+                        html_result += f'<span style="background-color: {bg_color}; color: #ffffff; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; white-space: nowrap; display: inline-block;">{value}</span>\n'
+                        html_result += f"</td>\n"
                 elif col in ["Tools Count", "Complexity Score"]:
                     # Special styling for numeric columns
                     html_result += f'<td style="padding: 12px; border: 1px solid #333333; text-align: center; background-color: {row_color}; font-weight: bold; color: #2c5282; font-size: 14px; vertical-align: middle; min-width: 60px;">{value}</td>\n'
@@ -1457,15 +1505,15 @@ def create_gradio_app():
     }
     """
 
-    with gr.Blocks(css=css, title="🎬 Atlas") as app:
+    with gr.Blocks(title="🎓 Shinu Learn Engine") as app:
         # Header Section
         with gr.Row():
             with gr.Column(elem_classes=["header-section"]):
                 gr.HTML(
                     """
                 <div style="text-align: center;">
-                    <h1>🎬 Atlas</h1>
-                    <p>AI-Powered Content Analysis Platform for Educational and Research Content</p>
+                    <h1>🎓 Shinu Learn Engine</h1>
+                    <p>AI-Powered Learning Intelligence Platform for Technical Education and Research</p>
                     <div style="display: flex; justify-content: center; gap: 20px; margin-top: 20px; flex-wrap: wrap;">
                         <div>🔍 <strong>YouTube Pipeline</strong><br/>Video search & analysis</div>
                         <div>📚 <strong>Academic RAG</strong><br/>Papers search & citations</div>
@@ -1576,7 +1624,6 @@ def create_gradio_app():
             label="🔍 1. YouTube Search Results",
             lines=8,
             max_lines=15,
-            show_copy_button=True,
             info="Found videos with details",
             interactive=False,
         )
@@ -1585,7 +1632,6 @@ def create_gradio_app():
             label="📝 2. Video Transcripts",
             lines=8,
             max_lines=15,
-            show_copy_button=True,
             info="Extracted transcripts with previews",
             interactive=False,
             container=True,
@@ -1597,7 +1643,6 @@ def create_gradio_app():
             label="🤖 3. AI Summaries",
             lines=8,
             max_lines=15,
-            show_copy_button=True,
             info="AI-generated summaries and key points",
             interactive=False,
         )
@@ -1612,7 +1657,6 @@ def create_gradio_app():
             label="📝 5. Educational Assignments",
             lines=8,
             max_lines=15,
-            show_copy_button=True,
             info="AI-generated educational assignments for hands-on learning",
             interactive=False,
         )
@@ -1667,7 +1711,6 @@ def create_gradio_app():
             label="📚 Academic Papers Search Results",
             lines=10,
             max_lines=20,
-            show_copy_button=True,
             info="AI-generated answers with paper citations and source excerpts",
             interactive=False,
         )
@@ -1729,7 +1772,7 @@ def create_gradio_app():
             show_progress="full",
         )
 
-    return app
+    return app, css
 
 
 if __name__ == "__main__":
@@ -1757,8 +1800,8 @@ if __name__ == "__main__":
 
         # Parse command line arguments for local development
         parser = argparse.ArgumentParser(
-            description="Atlas - AI-Powered Content Analysis Platform"
-        )
+            description="Shinu Learn Engine - AI-Powered Learning Intelligence Platform"
+         )
         parser.add_argument(
             "--host", type=str, default="127.0.0.1", help="Host to run the server on"
         )
@@ -1787,12 +1830,13 @@ if __name__ == "__main__":
 
     print("🚀 Launching Gradio interface...")
 
-    app = create_gradio_app()
+    app, css = create_gradio_app()
     app.launch(
         share=args.share,
         server_name=args.host,
         server_port=args.port,
         show_error=args.debug,
+        css=css,
     )
 
     if not is_cloud:

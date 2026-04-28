@@ -1,4 +1,4 @@
-"""Utility functions for the Atlas project.
+"""Utility functions for the Shinu Learn Engine project.
 
 This module contains utility functions for configuration loading, file operations,
 and common functionality used across the project.
@@ -150,7 +150,7 @@ def setup_logging() -> None:
 
     # Setup file logging if enabled
     if log_config.get("file_logging", False):
-        log_file = log_config.get("log_file", "logs/atlas.log")
+        log_file = log_config.get("log_file", "logs/shinu-learn-engine.log")
         os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
         file_handler = logging.FileHandler(log_file)

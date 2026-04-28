@@ -1,4 +1,4 @@
-import { BookOpenText, FileText, Search } from 'lucide-react'
+import { BookOpenText, FileText, Search, Loader2, Database, FileStack } from 'lucide-react'
 import { type FormEvent } from 'react'
 
 import { Badge } from '../../components/ui/badge'
@@ -29,99 +29,112 @@ export function PapersPanel({
   }
 
   return (
-    <section id="papers" className="space-y-6">
-      <Card className="overflow-hidden">
-        <div className="grid gap-8 bg-[linear-gradient(180deg,rgba(24,27,33,0.96),rgba(16,18,22,0.92))] p-8 lg:grid-cols-[0.85fr,1.15fr]">
-          <div>
+    <div className="space-y-8">
+      <div className="grid gap-8 lg:grid-cols-[1fr,400px]">
+        <div className="space-y-6">
+          <div className="space-y-2">
             <Badge>Academic papers RAG</Badge>
-            <h2 className="mt-5 text-3xl font-semibold tracking-[-0.04em] text-white">
-              Search indexed papers with structured citations.
+            <h2 className="text-3xl font-bold tracking-tight text-card-foreground">
+              Deep Academic Insights
             </h2>
-            <p className="mt-4 max-w-xl text-sm leading-7 text-zinc-300">
-              Query the indexed paper collection and inspect the supporting excerpts without leaving the
-              Atlas workspace.
+            <p className="text-muted-foreground">
+              Query the indexed paper collection and inspect supporting excerpts with AI-powered citations.
             </p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <Card className="p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Ready</p>
-                <p className="mt-2 text-xl font-semibold text-white">{status?.ready ? 'Yes' : 'No'}</p>
-              </Card>
-              <Card className="p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">PDFs</p>
-                <p className="mt-2 text-xl font-semibold text-white">{status?.pdf_count ?? 0}</p>
-              </Card>
-              <Card className="p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Index</p>
-                <p className="mt-2 text-xl font-semibold text-white">
-                  {status?.index_exists ? 'Available' : 'Missing'}
-                </p>
-              </Card>
-            </div>
           </div>
 
-          <Card className="border-white/8 bg-black/10 p-6">
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div>
-                <label className="mb-2 block text-sm font-medium text-zinc-200">Ask the paper index</label>
-                <textarea
-                  className="h-32 w-full rounded-2xl border border-white/8 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-white/15"
-                  placeholder="What are the main architectures for AI agents?"
-                  value={query}
-                  onChange={(event) => onQueryChange(event.target.value)}
-                />
+          <Card className="p-0 overflow-hidden border-primary/20">
+            <form onSubmit={handleSubmit} className="flex flex-col">
+              <textarea
+                className="min-h-[160px] w-full border-none bg-card/50 p-6 text-base text-card-foreground outline-none placeholder:text-muted-foreground/50 focus:ring-0"
+                placeholder="What are the main architectures for AI agents?"
+                value={query}
+                onChange={(event) => onQueryChange(event.target.value)}
+              />
+              <div className="flex items-center justify-between border-t border-border bg-muted/30 px-6 py-4">
+                <p className="text-xs text-muted-foreground flex items-center gap-2">
+                   <Database className="h-3 w-3" /> {status?.pdf_count || 0} Papers Indexed
+                </p>
+                <Button disabled={isLoading || !query.trim()} className="gap-2 h-11 px-6">
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                  {isLoading ? 'Analyzing...' : 'Search papers'}
+                </Button>
               </div>
-              <Button className="gap-2" disabled={isLoading || !query.trim()} type="submit">
-                <Search className="size-4" />
-                {isLoading ? 'Searching papers...' : 'Search papers'}
-              </Button>
-              {status?.message ? <p className="text-sm text-amber-200">{status.message}</p> : null}
             </form>
           </Card>
         </div>
-      </Card>
 
-      {result ? (
-        <div className="grid gap-6 xl:grid-cols-[0.85fr,1.15fr]">
-          <Card className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl border border-white/8 bg-white/[0.04] p-3 text-white">
-                <BookOpenText className="size-5" />
+        <div className="space-y-4">
+           <h5 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Index Status</h5>
+           <Card className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">PDF Collection</span>
+                <Badge variant="secondary">{status?.pdf_count || 0}</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Vector Index</span>
+                <Badge className={status?.index_exists ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : ""}>
+                   {status?.index_exists ? 'Ready' : 'Missing'}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">RAG Status</span>
+                <div className="flex items-center gap-2">
+                   <div className={status?.ready ? "h-2 w-2 rounded-full bg-emerald-500 animate-pulse" : "h-2 w-2 rounded-full bg-amber-500"} />
+                   <span className="text-xs font-bold uppercase tracking-wider">{status?.ready ? 'Active' : 'Offline'}</span>
+                </div>
+              </div>
+           </Card>
+
+           <Card className="p-6 bg-primary/5 border-primary/20">
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                <span className="font-bold text-primary">Pro Tip:</span> Academic papers provide rigorous evidence for concepts discussed in videos. Combine both for a comprehensive view.
+              </p>
+           </Card>
+        </div>
+      </div>
+
+      {result && !isLoading ? (
+        <div className="grid gap-8 lg:grid-cols-[1.2fr,0.8fr] animate-in">
+          <Card className="p-8 space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <BookOpenText className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">Answer</h3>
-                <p className="text-sm text-zinc-400">
-                  {result.num_sources} sources in {result.search_time.toFixed(2)}s
-                </p>
+                <h3 className="text-xl font-bold text-card-foreground">AI Synthesis</h3>
+                <p className="text-xs text-muted-foreground">Generated from {result.num_sources} academic sources</p>
               </div>
             </div>
-            <p className="mt-5 whitespace-pre-wrap text-sm leading-7 text-zinc-300">{result.response}</p>
+            <div className="prose prose-sm prose-invert max-w-none">
+               <p className="text-base leading-relaxed text-card-foreground/90 whitespace-pre-wrap">{result.response}</p>
+            </div>
           </Card>
 
-          <Card className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl border border-white/8 bg-white/[0.04] p-3 text-white">
-                <FileText className="size-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white">Citations</h3>
-                <p className="text-sm text-zinc-400">Relevant excerpts from the indexed papers.</p>
-              </div>
-            </div>
-            <div className="mt-5 space-y-4">
-              {result.sources.map((source, index) => (
-                <Card key={`${source.file_name}-${index}`} className="p-4">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge>{source.title || source.file_name}</Badge>
-                    <Badge>{source.authors || 'Unknown authors'}</Badge>
-                    <Badge>Score {source.score.toFixed(3)}</Badge>
-                  </div>
-                  <p className="mt-3 text-sm leading-7 text-zinc-300">{source.text}</p>
-                </Card>
-              ))}
-            </div>
-          </Card>
+          <div className="space-y-6">
+             <div className="flex items-center gap-3">
+               <FileStack className="h-5 w-5 text-primary" />
+               <h4 className="font-bold text-card-foreground">Supporting Citations</h4>
+             </div>
+             <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+               {result.sources.map((source, index) => (
+                 <Card key={`${source.file_name}-${index}`} className="p-5 hover:bg-muted/30 transition-colors">
+                   <div className="flex flex-wrap gap-2 mb-3">
+                     <Badge variant="secondary" className="lowercase">{source.file_name}</Badge>
+                     <Badge className="bg-primary/5 text-primary border-none">Score {source.score.toFixed(3)}</Badge>
+                   </div>
+                   <p className="text-sm leading-relaxed text-muted-foreground italic">
+                     "{trimText(source.text, 280)}"
+                   </p>
+                 </Card>
+               ))}
+             </div>
+          </div>
         </div>
       ) : null}
-    </section>
+    </div>
   )
 }

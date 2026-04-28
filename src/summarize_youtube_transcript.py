@@ -457,9 +457,9 @@ def main():
 # Example usage for batch processing
 if __name__ == "__main__":
     transcript_paths = [
-        # "/Users/ishandutta/Documents/code/atlas/transcripts/gpz6C_2l5jI.en.srt",
-        # "/Users/ishandutta/Documents/code/atlas/transcripts/q6kJ71tEYqM.en.srt",
-        "/Users/ishandutta/Documents/code/atlas/transcripts/UV81LAb3x2g.en.srt"
+        # "transcripts/gpz6C_2l5jI.en.srt",
+        # "transcripts/q6kJ71tEYqM.en.srt",
+        "transcripts/UV81LAb3x2g.en.srt"
     ]
 
     summarizer = YouTubeTranscriptSummarizer()

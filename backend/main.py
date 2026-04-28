@@ -6,9 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.routers import papers, pipeline, runs
 
 app = FastAPI(
-    title="Atlas API",
+    title="Shinu Learn Engine API",
     version="1.0.0",
-    description="FastAPI backend for the Atlas RAG and YouTube analysis platform.",
+    description="FastAPI backend for the Shinu Learn Engine RAG and YouTube analysis platform.",
 )
 
 app.add_middleware(
@@ -31,4 +31,4 @@ app.include_router(papers.router)
 
 @app.get("/api/health")
 def health_check() -> dict[str, str]:
-    return {"status": "ok", "service": "atlas-api"}
+    return {"status": "ok", "service": "shinu-learn-engine-api"}

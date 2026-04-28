@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { Card } from './components/ui/card'
-import { PapersPanel } from './features/papers/papers-panel'
+import { Navbar } from './components/layout/navbar'
+import { SearchHeader } from './components/layout/search-header'
+import { ThemeProvider } from './components/theme-provider'
 import { PipelineDashboard } from './features/pipeline/pipeline-dashboard'
 import {
   getLatestRun,
@@ -107,49 +108,51 @@ function App() {
   })
 
   return (
-    <div className="min-h-screen bg-[#0b0d10] text-white">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.04),transparent_28%),radial-gradient(circle_at_20%_20%,rgba(111,118,130,0.08),transparent_24%),radial-gradient(circle_at_80%_0%,rgba(205,151,74,0.06),transparent_22%)]" />
+    <ThemeProvider>
+      <div className="min-h-screen bg-background transition-colors duration-500 selection:bg-primary/20 selection:text-primary">
+        <Navbar />
+        
+        {/* Subtle Watermark */}
+        <div className="pointer-events-none fixed inset-0 overflow-hidden opacity-[0.03] dark:opacity-[0.05] z-0">
+          <img 
+            src="/brand/ShinuAILabs_Logo.png" 
+            alt="" 
+            className="absolute -right-24 -top-24 h-[600px] w-[600px] object-contain rotate-12"
+            onError={(e) => (e.currentTarget.style.display = 'none')}
+          />
+        </div>
 
-      <div className="relative mx-auto max-w-[1380px] px-6 pb-16 pt-10 lg:px-10">
-        <header className="mb-10 border-b border-white/6 pb-6 text-center">
-          <h1 className="text-4xl font-semibold tracking-[-0.06em] text-white md:text-5xl">Atlas</h1>
-        </header>
-
-        {statusMessage ? (
-          <Card className="mb-6 border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-zinc-200">
-            {statusMessage}
-          </Card>
-        ) : null}
-
-        <main className="space-y-12">
-          <PipelineDashboard
-            activeRunId={activeRunId}
-            bundle={runBundleQuery.data}
-            error={runBundleQuery.error instanceof Error ? runBundleQuery.error.message : undefined}
-            isLoading={runBundleQuery.isLoading || latestRunQuery.isLoading}
-            isRunning={runMutation.isPending}
+        <main className="relative z-10 mx-auto max-w-[1600px] px-6 py-8 lg:px-10">
+          <SearchHeader
+            query={searchQuery}
+            onQueryChange={setSearchQuery}
+            onSearch={() => runMutation.mutate()}
+            isPending={runMutation.isPending}
             maxVideos={maxVideos}
-            numWorkers={numWorkers}
             onMaxVideosChange={setMaxVideos}
-            onSearchQueryChange={setSearchQuery}
-            onStartRun={() => runMutation.mutate()}
-            onTranscriptLanguageChange={setTranscriptLanguage}
-            onNumWorkersChange={setNumWorkers}
-            searchQuery={searchQuery}
             transcriptLanguage={transcriptLanguage}
+            onTranscriptLanguageChange={setTranscriptLanguage}
+            numWorkers={numWorkers}
+            onNumWorkersChange={setNumWorkers}
           />
 
-          <PapersPanel
-            isLoading={papersMutation.isPending}
-            onQueryChange={setPapersQuery}
-            onSubmit={() => papersMutation.mutate()}
-            query={papersQuery}
-            result={papersMutation.data}
-            status={papersStatusQuery.data}
-          />
+          <div className="mt-12">
+            <PipelineDashboard
+              activeRunId={activeRunId}
+              bundle={runBundleQuery.data}
+              error={runBundleQuery.error instanceof Error ? runBundleQuery.error.message : undefined}
+              isLoading={runBundleQuery.isLoading || latestRunQuery.isLoading || runMutation.isPending}
+              isRunning={runMutation.isPending}
+              onStartRun={() => runMutation.mutate()}
+              papersMutation={papersMutation}
+              papersStatus={papersStatusQuery.data}
+              onPapersQueryChange={setPapersQuery}
+              papersQuery={papersQuery}
+            />
+          </div>
         </main>
       </div>
-    </div>
+    </ThemeProvider>
   )
 }
 
